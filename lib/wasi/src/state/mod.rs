@@ -21,10 +21,9 @@ mod types;
 pub use self::builder::*;
 pub use self::types::*;
 use crate::syscalls::types::*;
-use generational_arena::Arena;
-pub use generational_arena::Index as Inode;
 #[cfg(feature = "enable-serde")]
 use serde::{Deserialize, Serialize};
+use slotmap::SlotMap;
 use std::collections::HashMap;
 use std::{
     borrow::Borrow,
@@ -35,6 +34,9 @@ use std::{
 use tracing::debug;
 
 use wasmer_vfs::{FileSystem, FsError, OpenOptions, VirtualFile};
+
+type Arena<T> = SlotMap<Inode, T>;
+pub type Inode = slotmap::DefaultKey;
 
 /// the fd value of the virtual root
 pub const VIRTUAL_ROOT_FD: __wasi_fd_t = 3;
@@ -1576,13 +1578,13 @@ impl WasiState {
     /// Turn the WasiState into bytes
     #[cfg(feature = "enable-serde")]
     pub fn freeze(&self) -> Option<Vec<u8>> {
-        bincode::serialize(self).ok()
+        rmp_serde::to_vec(self).ok()
     }
 
     /// Get a WasiState from bytes
     #[cfg(feature = "enable-serde")]
     pub fn unfreeze(bytes: &[u8]) -> Option<Self> {
-        bincode::deserialize(bytes).ok()
+        rmp_serde::from_slice(bytes).ok()
     }
 }
 

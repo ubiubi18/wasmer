@@ -128,7 +128,7 @@ impl DummyArtifact {
 
         let inner_bytes = &bytes[Self::MAGIC_HEADER.len()..];
 
-        let metadata: DummyArtifactMetadata = bincode::deserialize(inner_bytes)
+        let metadata: DummyArtifactMetadata = rmp_serde::from_slice(inner_bytes)
             .map_err(|e| DeserializeError::CorruptedBinary(format!("{:?}", e)))?;
 
         Self::from_parts(&engine, metadata).map_err(DeserializeError::Compiler)
@@ -228,7 +228,7 @@ impl ArtifactCreate for DummyArtifact {
     }
     #[cfg(feature = "serialize")]
     fn serialize(&self) -> Result<Vec<u8>, SerializeError> {
-        let bytes = bincode::serialize(&self.metadata)
+        let bytes = rmp_serde::to_vec(&self.metadata)
             .map_err(|e| SerializeError::Generic(format!("{:?}", e)))?;
 
         // Prepend the header.

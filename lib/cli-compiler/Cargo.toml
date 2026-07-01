@@ -23,7 +23,7 @@ wasmer-compiler = { version = "=2.3.0", path = "../compiler" }
 wasmer-types = { version = "=2.3.0", path = "../types" }
 colored = "2.0"
 anyhow = "1.0"
-structopt = { version = "0.3", default-features = false, features = ["suggestions"] }
+clap = { version = "4.6.1", features = ["derive"] }
 # For the function names autosuggestion
 distance = "0.4"
 # For the inspect subcommand

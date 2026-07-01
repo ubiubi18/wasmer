@@ -208,7 +208,7 @@ impl StaticlibArtifact {
         - SignatureIndex -> VMSharedSignatureindextureIndex // signatures
          */
 
-        let serialized_data = bincode::serialize(&metadata).map_err(to_compile_error)?;
+        let serialized_data = rmp_serde::to_vec(&metadata).map_err(to_compile_error)?;
         let mut metadata_binary = vec![];
         metadata_binary.extend(MetadataHeader::new(serialized_data.len()));
         metadata_binary.extend(serialized_data);
@@ -325,7 +325,7 @@ impl StaticlibArtifact {
         let metadata_len = MetadataHeader::parse(bytes)?;
 
         let metadata: ModuleMetadata =
-            bincode::deserialize(&bytes[MetadataHeader::LEN..][..metadata_len]).unwrap();
+            rmp_serde::from_slice(&bytes[MetadataHeader::LEN..][..metadata_len]).unwrap();
 
         const WORD_SIZE: usize = mem::size_of::<usize>();
         let mut byte_buffer = [0u8; WORD_SIZE];

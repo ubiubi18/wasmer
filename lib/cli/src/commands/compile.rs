@@ -1,35 +1,45 @@
 use crate::store::{EngineType, StoreOptions};
 use crate::warning;
 use anyhow::{Context, Result};
+use clap::Parser;
 use std::path::PathBuf;
-use structopt::StructOpt;
 use wasmer::*;
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, Parser)]
 /// The options for the `wasmer compile` subcommand
 pub struct Compile {
     /// Input file
-    #[structopt(name = "FILE", parse(from_os_str))]
+    #[clap(name = "FILE")]
     path: PathBuf,
 
     /// Output file
-    #[structopt(name = "OUTPUT PATH", short = "o", parse(from_os_str))]
+    #[clap(name = "OUTPUT PATH", short = 'o')]
     output: PathBuf,
 
     /// Output path for generated header file
     #[cfg(feature = "staticlib")]
-    #[structopt(name = "HEADER PATH", long = "header", parse(from_os_str))]
+    #[clap(name = "HEADER PATH", long = "header")]
     header_path: Option<PathBuf>,
 
     /// Compilation Target triple
-    #[structopt(long = "target")]
+    #[clap(long = "target", value_parser = parse_triple)]
     target_triple: Option<Triple>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     store: StoreOptions,
 
-    #[structopt(short = "m", multiple = true, number_of_values = 1)]
+    #[clap(short = 'm', value_parser = parse_cpu_feature)]
     cpu_features: Vec<CpuFeature>,
+}
+
+fn parse_triple(input: &str) -> Result<Triple, String> {
+    input.parse::<Triple>().map_err(|err| err.to_string())
+}
+
+fn parse_cpu_feature(input: &str) -> Result<CpuFeature, String> {
+    input
+        .parse::<CpuFeature>()
+        .map_err(|err| format!("{err:?}"))
 }
 
 impl Compile {

@@ -298,31 +298,42 @@ impl<'de> Deserialize<'de> for File {
 }
 
 impl File {
+    #[cfg(feature = "enable-serde")]
     const READ: u16 = 1;
+    #[cfg(feature = "enable-serde")]
     const WRITE: u16 = 2;
+    #[cfg(feature = "enable-serde")]
     const APPEND: u16 = 4;
 
     /// creates a new host file from a `std::fs::File` and a path
     pub fn new(file: fs::File, host_path: PathBuf, read: bool, write: bool, append: bool) -> Self {
-        let mut _flags = 0;
+        #[cfg(not(feature = "enable-serde"))]
+        let _ = (read, write, append);
 
-        if read {
-            _flags |= Self::READ;
-        }
+        #[cfg(feature = "enable-serde")]
+        let flags = {
+            let mut flags = 0;
 
-        if write {
-            _flags |= Self::WRITE;
-        }
+            if read {
+                flags |= Self::READ;
+            }
 
-        if append {
-            _flags |= Self::APPEND;
-        }
+            if write {
+                flags |= Self::WRITE;
+            }
+
+            if append {
+                flags |= Self::APPEND;
+            }
+
+            flags
+        };
 
         Self {
             inner: file,
             host_path,
             #[cfg(feature = "enable-serde")]
-            _flags,
+            flags,
         }
     }
 

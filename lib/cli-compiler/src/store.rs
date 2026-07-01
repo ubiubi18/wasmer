@@ -3,10 +3,10 @@
 
 use crate::common::WasmFeatures;
 use anyhow::Result;
+use clap::Parser;
 use std::string::ToString;
 #[allow(unused_imports)]
 use std::sync::Arc;
-use structopt::StructOpt;
 use wasmer_compiler::{CompilerConfig, Features, PointerWidth, Target};
 use wasmer_engine_universal_artifact::UniversalEngineBuilder;
 use wasmer_types::{MemoryStyle, MemoryType, Pages, TableStyle, TableType};
@@ -84,34 +84,34 @@ impl SubsetTunables {
     }
 }
 
-#[derive(Debug, Clone, StructOpt, Default)]
+#[derive(Debug, Clone, Parser, Default)]
 /// The compiler and engine options
 pub struct StoreOptions {
-    #[structopt(flatten)]
+    #[clap(flatten)]
     compiler: CompilerOptions,
 }
 
-#[derive(Debug, Clone, StructOpt, Default)]
+#[derive(Debug, Clone, Parser, Default)]
 /// The compiler options
 pub struct CompilerOptions {
     /// Use Singlepass compiler.
-    #[structopt(long, conflicts_with = "llvm")]
+    #[clap(long, conflicts_with = "llvm")]
     singlepass: bool,
 
     /// Use Cranelift compiler. Retained as a compatibility flag; unsupported in this fork.
-    #[structopt(long, conflicts_with_all = &["singlepass", "llvm"], hidden = true)]
+    #[clap(long, conflicts_with_all = &["singlepass", "llvm"], hide = true)]
     cranelift: bool,
 
     /// Use LLVM compiler.
-    #[structopt(long, conflicts_with = "singlepass")]
+    #[clap(long, conflicts_with = "singlepass")]
     llvm: bool,
 
     /// Enable compiler internal verification.
-    #[structopt(long)]
+    #[clap(long)]
     #[allow(dead_code)]
     enable_verifier: bool,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     features: WasmFeatures,
 }
 

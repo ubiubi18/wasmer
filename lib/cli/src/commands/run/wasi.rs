@@ -5,46 +5,39 @@ use std::path::PathBuf;
 use wasmer::{Instance, Module, RuntimeError, Val};
 use wasmer_wasi::{get_wasi_versions, WasiError, WasiState, WasiVersion};
 
-use structopt::StructOpt;
+use clap::Parser;
 
-#[derive(Debug, StructOpt, Clone, Default)]
+#[derive(Debug, Parser, Clone, Default)]
 /// WASI Options
 pub struct Wasi {
     /// WASI pre-opened directory
-    #[structopt(
-        long = "dir",
-        name = "DIR",
-        multiple = true,
-        group = "wasi",
-        number_of_values = 1
-    )]
+    #[clap(long = "dir", name = "DIR", num_args = 1, group = "wasi")]
     pre_opened_directories: Vec<PathBuf>,
 
     /// Map a host directory to a different location for the Wasm module
-    #[structopt(
+    #[clap(
         long = "mapdir",
         name = "GUEST_DIR:HOST_DIR",
-        multiple = true,
-        parse(try_from_str = parse_mapdir),
-        number_of_values = 1,
+        num_args = 1,
+        value_parser = parse_mapdir,
     )]
     mapped_dirs: Vec<(String, PathBuf)>,
 
     /// Pass custom environment variables
-    #[structopt(
+    #[clap(
         long = "env",
         name = "KEY=VALUE",
-        multiple = true,
-        parse(try_from_str = parse_envvar),
+        num_args = 1,
+        value_parser = parse_envvar,
     )]
     env_vars: Vec<(String, String)>,
 
     /// Allow WASI modules to import multiple versions of WASI without a warning.
-    #[structopt(long = "allow-multiple-wasi-versions")]
+    #[clap(long = "allow-multiple-wasi-versions")]
     pub allow_multiple_wasi_versions: bool,
 
     /// Require WASI modules to only import 1 version of WASI.
-    #[structopt(long = "deny-multiple-wasi-versions")]
+    #[clap(long = "deny-multiple-wasi-versions")]
     pub deny_multiple_wasi_versions: bool,
 }
 

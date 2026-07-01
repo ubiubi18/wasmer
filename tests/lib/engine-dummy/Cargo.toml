@@ -15,7 +15,7 @@ wasmer-vm = { path = "../../../lib/vm", version = "=2.3.0" }
 wasmer-engine = { path = "../../../lib/engine", version = "=2.3.0" }
 serde = { version = "1.0", features = ["derive", "rc"], optional = true }
 serde_bytes = { version = "0.11", optional = true }
-bincode = { version = "1.2", optional = true }
+rmp-serde = { version = "1.3.1", optional = true }
 loupe = "0.1"
 enumset = "1.0"
 
@@ -24,7 +24,7 @@ enumset = "1.0"
 # and not be only on headless mode.
 default = ["serialize", "compiler"]
 compiler = ["wasmer-compiler/translator"]
-serialize = ["serde", "serde_bytes", "bincode"]
+serialize = ["serde", "serde_bytes", "rmp-serde"]
 
 [badges]
 # TODO: publish this crate again and deprecate it
