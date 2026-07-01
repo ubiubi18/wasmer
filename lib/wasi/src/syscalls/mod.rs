@@ -1830,12 +1830,22 @@ pub fn path_open(
                     .create_new(true);
                 open_flags |= Fd::READ | Fd::WRITE | Fd::CREATE | Fd::TRUNCATE;
 
-                Some(wasi_try!(open_options.open(&new_file_host_path).map_err(
-                    |e| {
-                        debug!("Error opening file {}", e);
-                        fs_error_into_wasi_err(e)
+                let handle = match open_options.open(&new_file_host_path) {
+                    Ok(handle) => handle,
+                    Err(FsError::AlreadyExists) => {
+                        debug!(
+                            "Refusing to create path through existing host entry {}",
+                            new_file_host_path.display()
+                        );
+                        return __WASI_EPERM;
                     }
-                )))
+                    Err(e) => {
+                        debug!("Error opening file {}", e);
+                        return fs_error_into_wasi_err(e);
+                    }
+                };
+
+                Some(handle)
             };
 
             let new_inode = {
