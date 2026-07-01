@@ -96,4 +96,4 @@ native = ["dylib"]
 #emscripten = ["wasmer-emscripten"]
 
 [build-dependencies]
-cbindgen = { version = "0.19", default-features = false }
+cbindgen = { version = "0.29.4", default-features = false }

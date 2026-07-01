@@ -53,7 +53,7 @@ pub fn call_memset(ctx: &EmEnv, pointer: u32, value: u32, size: u32) -> u32 {
         .unwrap()
 }
 
-pub(crate) fn get_emscripten_data(ctx: &EmEnv) -> MutexGuard<EmscriptenData> {
+pub(crate) fn get_emscripten_data(ctx: &EmEnv) -> MutexGuard<'_, EmscriptenData> {
     ctx.data.lock().unwrap()
 }
 

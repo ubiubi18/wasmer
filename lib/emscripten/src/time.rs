@@ -3,7 +3,7 @@ use crate::{allocate_on_stack, lazy_static, EmEnv};
 use libc::{c_char, c_int};
 // use libc::{c_char, c_int, clock_getres, clock_settime};
 use std::mem;
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 
 #[cfg(not(target_os = "windows"))]
 use libc::{clockid_t, time as libc_time, timegm as libc_timegm, tm as libc_tm};
@@ -96,10 +96,9 @@ pub fn _clock_gettime(ctx: &EmEnv, clk_id: clockid_t, tp: c_int) -> c_int {
 
         CLOCK_MONOTONIC | CLOCK_MONOTONIC_COARSE => {
             lazy_static! {
-                static ref PRECISE0: time::Instant = time::Instant::now();
+                static ref PRECISE0: Instant = Instant::now();
             };
-            let precise_ns = *PRECISE0;
-            (time::Instant::now() - precise_ns).whole_nanoseconds()
+            Instant::now().duration_since(*PRECISE0).as_nanos() as i128
         }
         _ => panic!("Clock with id \"{}\" is not supported.", clk_id),
     };
@@ -165,6 +164,181 @@ struct guest_tm {
     pub tm_isdst: c_int,  // 32
     pub tm_gmtoff: c_int, // 36
     pub tm_zone: c_int,   // 40
+}
+
+fn offset_datetime_from_unix_seconds(seconds: i64) -> time::OffsetDateTime {
+    time::OffsetDateTime::from_unix_timestamp(seconds).unwrap_or(time::OffsetDateTime::UNIX_EPOCH)
+}
+
+fn fill_guest_tm(tm: &mut guest_tm, timestamp: time::OffsetDateTime) {
+    tm.tm_sec = timestamp.second() as _;
+    tm.tm_min = timestamp.minute() as _;
+    tm.tm_hour = timestamp.hour() as _;
+    tm.tm_mon = timestamp.month() as c_int - 1;
+    tm.tm_mday = timestamp.day() as _;
+    tm.tm_year = timestamp.year() - 1900;
+    tm.tm_wday = timestamp.weekday().number_days_from_sunday() as _;
+    tm.tm_yday = timestamp.ordinal() as c_int - 1;
+    tm.tm_isdst = -1;
+    tm.tm_gmtoff = 0;
+    tm.tm_zone = 0;
+}
+
+fn tm_year(tm: &guest_tm) -> c_int {
+    1900 + tm.tm_year
+}
+
+fn tm_month_index(tm: &guest_tm) -> usize {
+    if (0..=11).contains(&tm.tm_mon) {
+        tm.tm_mon as usize
+    } else {
+        0
+    }
+}
+
+fn format_timezone_offset(seconds: c_int) -> String {
+    let sign = if seconds < 0 { '-' } else { '+' };
+    let absolute = seconds.abs();
+    let hours = absolute / 3600;
+    let minutes = (absolute % 3600) / 60;
+    format!("{}{:02}{:02}", sign, hours, minutes)
+}
+
+fn render_strftime(format_string: &str, tm: &guest_tm) -> String {
+    const WEEKDAYS_SHORT: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const WEEKDAYS_LONG: [&str; 7] = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+    ];
+    const MONTHS_SHORT: [&str; 12] = [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ];
+    const MONTHS_LONG: [&str; 12] = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ];
+
+    let mut output = String::new();
+    let mut chars = format_string.chars();
+    let wday = if (0..=6).contains(&tm.tm_wday) {
+        tm.tm_wday as usize
+    } else {
+        0
+    };
+    let month = tm_month_index(tm);
+    let year = tm_year(tm);
+
+    while let Some(ch) = chars.next() {
+        if ch != '%' {
+            output.push(ch);
+            continue;
+        }
+
+        match chars.next() {
+            Some('%') => output.push('%'),
+            Some('a') => output.push_str(WEEKDAYS_SHORT[wday]),
+            Some('A') => output.push_str(WEEKDAYS_LONG[wday]),
+            Some('b') | Some('h') => output.push_str(MONTHS_SHORT[month]),
+            Some('B') => output.push_str(MONTHS_LONG[month]),
+            Some('c') => output.push_str(&format!(
+                "{} {} {:2} {:02}:{:02}:{:02} {}",
+                WEEKDAYS_SHORT[wday],
+                MONTHS_SHORT[month],
+                tm.tm_mday,
+                tm.tm_hour,
+                tm.tm_min,
+                tm.tm_sec,
+                year
+            )),
+            Some('d') => output.push_str(&format!("{:02}", tm.tm_mday)),
+            Some('D') => output.push_str(&format!(
+                "{:02}/{:02}/{:02}",
+                tm.tm_mon + 1,
+                tm.tm_mday,
+                year.rem_euclid(100)
+            )),
+            Some('e') => output.push_str(&format!("{:2}", tm.tm_mday)),
+            Some('F') => {
+                output.push_str(&format!("{:04}-{:02}-{:02}", year, tm.tm_mon + 1, tm.tm_mday))
+            }
+            Some('H') => output.push_str(&format!("{:02}", tm.tm_hour)),
+            Some('I') => {
+                let hour = match tm.tm_hour.rem_euclid(12) {
+                    0 => 12,
+                    hour => hour,
+                };
+                output.push_str(&format!("{:02}", hour));
+            }
+            Some('j') => output.push_str(&format!("{:03}", tm.tm_yday + 1)),
+            Some('m') => output.push_str(&format!("{:02}", tm.tm_mon + 1)),
+            Some('M') => output.push_str(&format!("{:02}", tm.tm_min)),
+            Some('p') => output.push_str(if tm.tm_hour < 12 { "AM" } else { "PM" }),
+            Some('r') => {
+                let hour = match tm.tm_hour.rem_euclid(12) {
+                    0 => 12,
+                    hour => hour,
+                };
+                output.push_str(&format!(
+                    "{:02}:{:02}:{:02} {}",
+                    hour,
+                    tm.tm_min,
+                    tm.tm_sec,
+                    if tm.tm_hour < 12 { "AM" } else { "PM" }
+                ));
+            }
+            Some('R') => output.push_str(&format!("{:02}:{:02}", tm.tm_hour, tm.tm_min)),
+            Some('S') => output.push_str(&format!("{:02}", tm.tm_sec)),
+            Some('T') => output.push_str(&format!(
+                "{:02}:{:02}:{:02}",
+                tm.tm_hour, tm.tm_min, tm.tm_sec
+            )),
+            Some('u') => {
+                let iso_weekday = if tm.tm_wday == 0 { 7 } else { tm.tm_wday };
+                output.push_str(&iso_weekday.to_string());
+            }
+            Some('w') => output.push_str(&tm.tm_wday.to_string()),
+            Some('x') => output.push_str(&format!(
+                "{:02}/{:02}/{:02}",
+                tm.tm_mon + 1,
+                tm.tm_mday,
+                year.rem_euclid(100)
+            )),
+            Some('X') => output.push_str(&format!(
+                "{:02}:{:02}:{:02}",
+                tm.tm_hour, tm.tm_min, tm.tm_sec
+            )),
+            Some('y') => output.push_str(&format!("{:02}", year.rem_euclid(100))),
+            Some('Y') => output.push_str(&format!("{:04}", year)),
+            Some('z') => output.push_str(&format_timezone_offset(tm.tm_gmtoff)),
+            Some('Z') => {
+                if tm.tm_gmtoff == 0 {
+                    output.push_str("UTC");
+                }
+            }
+            Some(other) => {
+                output.push('%');
+                output.push(other);
+            }
+            None => output.push('%'),
+        }
+    }
+
+    output
 }
 
 /// emscripten: _tvset
@@ -240,7 +414,7 @@ pub fn _localtime(ctx: &EmEnv, time_p: u32) -> c_int {
     let timespec = unsafe {
         let time_p_addr = emscripten_memory_pointer!(ctx.memory(0), time_p) as *mut i64;
         let seconds = *time_p_addr;
-        time::OffsetDateTime::from_unix_timestamp(seconds)
+        offset_datetime_from_unix_seconds(seconds)
     };
 
     unsafe {
@@ -252,17 +426,7 @@ pub fn _localtime(ctx: &EmEnv, time_p: u32) -> c_int {
         //     result_tm.tm_sec, result_tm.tm_min, result_tm.tm_hour, result_tm.tm_mday,
         //     result_tm.tm_mon, result_tm.tm_year, result_tm.tm_wday, result_tm.tm_yday,
         // );
-        (*tm_struct_ptr).tm_sec = timespec.second() as _;
-        (*tm_struct_ptr).tm_min = timespec.minute() as _;
-        (*tm_struct_ptr).tm_hour = timespec.hour() as _;
-        (*tm_struct_ptr).tm_mon = timespec.month() as _;
-        (*tm_struct_ptr).tm_mday = timespec.day() as _;
-        (*tm_struct_ptr).tm_year = timespec.year();
-        (*tm_struct_ptr).tm_wday = timespec.weekday() as _;
-        (*tm_struct_ptr).tm_yday = timespec.ordinal() as _;
-        (*tm_struct_ptr).tm_isdst = -1; // DST information unknown with time 0.2+
-        (*tm_struct_ptr).tm_gmtoff = 0;
-        (*tm_struct_ptr).tm_zone = 0;
+        fill_guest_tm(&mut *tm_struct_ptr, timespec);
 
         tm_struct_offset as _
     }
@@ -277,7 +441,7 @@ pub fn _localtime_r(ctx: &EmEnv, time_p: u32, result: u32) -> c_int {
 
     unsafe {
         let seconds = emscripten_memory_pointer!(ctx.memory(0), time_p) as *const i32;
-        let timespec = time::OffsetDateTime::from_unix_timestamp_nanos(*seconds as _);
+        let timespec = offset_datetime_from_unix_seconds(*seconds as i64);
 
         // debug!(
         //     ">>>>>>> time = {}, {}, {}, {}, {}, {}, {}, {}",
@@ -287,17 +451,7 @@ pub fn _localtime_r(ctx: &EmEnv, time_p: u32, result: u32) -> c_int {
 
         let result_addr = emscripten_memory_pointer!(ctx.memory(0), result) as *mut guest_tm;
 
-        (*result_addr).tm_sec = timespec.second() as _;
-        (*result_addr).tm_min = timespec.minute() as _;
-        (*result_addr).tm_hour = timespec.hour() as _;
-        (*result_addr).tm_mon = timespec.month() as _;
-        (*result_addr).tm_mday = timespec.day() as _;
-        (*result_addr).tm_year = timespec.year();
-        (*result_addr).tm_wday = timespec.weekday() as _;
-        (*result_addr).tm_yday = timespec.ordinal() as _;
-        (*result_addr).tm_isdst = -1; // DST information unknown with time 0.2+
-        (*result_addr).tm_gmtoff = 0;
-        (*result_addr).tm_zone = 0;
+        fill_guest_tm(&mut *result_addr, timespec);
 
         result as _
     }
@@ -402,30 +556,20 @@ pub fn _strftime(ctx: &EmEnv, s_ptr: c_int, maxsize: u32, format_ptr: c_int, tm_
 
     let tm = unsafe { &*tm };
 
-    let rust_date = time::Date::try_from_ymd(tm.tm_year, tm.tm_mon as u8, tm.tm_mday as u8);
-    if !rust_date.is_ok() {
-        return 0;
-    }
-    let rust_time = time::Time::try_from_hms(tm.tm_hour as u8, tm.tm_min as u8, tm.tm_sec as u8);
-    if !rust_time.is_ok() {
-        return 0;
-    }
-    let rust_datetime = time::PrimitiveDateTime::new(rust_date.unwrap(), rust_time.unwrap());
-    let rust_odt = rust_datetime.assume_offset(time::UtcOffset::seconds(tm.tm_gmtoff));
-
-    let result_str = rust_odt.format(format_string);
+    let result_str = render_strftime(format_string, tm);
 
     // pad for null?
-    let bytes = result_str.chars().count();
-    if bytes as u32 > maxsize {
+    let bytes = result_str.as_bytes();
+    if bytes.len() + 1 > maxsize as usize {
         0
     } else {
         // write output string
-        for (i, c) in result_str.chars().enumerate() {
-            unsafe { *s.add(i) = c as c_char };
+        for (i, byte) in bytes.iter().enumerate() {
+            unsafe { *s.add(i) = *byte as c_char };
         }
         // null terminate?
-        bytes as i32
+        unsafe { *s.add(bytes.len()) = 0 };
+        bytes.len() as i32
     }
 }
 

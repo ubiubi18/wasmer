@@ -62,11 +62,6 @@ pub struct Run {
     #[structopt(flatten)]
     wasi: Wasi,
 
-    /// Enable non-standard experimental IO devices
-    #[cfg(feature = "experimental-io-devices")]
-    #[structopt(long = "enable-io-devices")]
-    enable_experimental_io_devices: bool,
-
     /// Enable debug output
     #[cfg(feature = "debug")]
     #[structopt(long = "debug", short = "d")]

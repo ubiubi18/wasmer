@@ -39,11 +39,6 @@ pub struct Wasi {
     )]
     env_vars: Vec<(String, String)>,
 
-    /// Enable experimental IO devices
-    #[cfg(feature = "experimental-io-devices")]
-    #[structopt(long = "enable-experimental-io-devices")]
-    enable_experimental_io_devices: bool,
-
     /// Allow WASI modules to import multiple versions of WASI without a warning.
     #[structopt(long = "allow-multiple-wasi-versions")]
     pub allow_multiple_wasi_versions: bool,
@@ -84,14 +79,6 @@ impl Wasi {
             .envs(self.env_vars.clone())
             .preopen_dirs(self.pre_opened_directories.clone())?
             .map_dirs(self.mapped_dirs.clone())?;
-
-        #[cfg(feature = "experimental-io-devices")]
-        {
-            if self.enable_experimental_io_devices {
-                wasi_state_builder
-                    .setup_fs(Box::new(wasmer_wasi_experimental_io_devices::initialize));
-            }
-        }
 
         let mut wasi_env = wasi_state_builder.finalize()?;
         let resolver = wasi_env.import_object_for_all_wasi_versions(&module)?;

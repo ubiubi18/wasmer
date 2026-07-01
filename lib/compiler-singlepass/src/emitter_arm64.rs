@@ -3,7 +3,6 @@ use crate::common_decl::Size;
 use crate::location::Location as AbstractLocation;
 pub use crate::location::{Multiplier, Reg};
 pub use crate::machine::{Label, Offset};
-use dynasm::dynasm;
 pub use dynasmrt::aarch64::{encode_logical_immediate_32bit, encode_logical_immediate_64bit};
 use dynasmrt::{
     aarch64::Aarch64Relocation, AssemblyOffset, DynamicLabel, DynasmApi, DynasmLabelApi,

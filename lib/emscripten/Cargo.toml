@@ -15,8 +15,11 @@ byteorder = "1.3"
 lazy_static = "1.4"
 libc = "^0.2"
 log = "0.4"
-time = { version = "0.2", features = ["std"] }
+time = { version = "0.3.53", features = ["std"] }
 wasmer = { path = "../api", version = "=2.3.0", default-features = false, features = ["sys"] }
 
 [target.'cfg(windows)'.dependencies]
 getrandom = "0.2"
+
+[features]
+debug = []

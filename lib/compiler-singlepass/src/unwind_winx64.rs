@@ -174,7 +174,6 @@ impl UnwindCode {
 /// For information about Windows x64 unwind info, see:
 /// <https://docs.microsoft.com/en-us/cpp/build/exception-handling-x64>
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "enable-serde", derive(Serialize, Deserialize))]
 pub struct UnwindInfo {
     pub(crate) flags: u8,
     pub(crate) prologue_size: u8,

@@ -4,7 +4,6 @@ pub use crate::location::Multiplier;
 pub use crate::machine::{Label, Offset};
 use crate::machine_x64::AssemblerX64;
 pub use crate::x64_decl::{GPR, XMM};
-use dynasm::dynasm;
 use dynasmrt::{AssemblyOffset, DynamicLabel, DynasmApi, DynasmLabelApi};
 use wasmer_compiler::CpuFeature;
 

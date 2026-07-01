@@ -58,7 +58,10 @@ impl fmt::Debug for __wasi_filestat_t {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let convert_ts_into_time_string = |ts| {
             let tspec = ::time::OffsetDateTime::from_unix_timestamp_nanos(ts);
-            format!("{} ({})", tspec.format("%a, %d %b %Y %T %z"), ts)
+            match tspec {
+                Ok(tspec) => format!("{:?} ({})", tspec, ts),
+                Err(_) => format!("invalid timestamp ({})", ts),
+            }
         };
         f.debug_struct("__wasi_filestat_t")
             .field("st_dev", &self.st_dev)

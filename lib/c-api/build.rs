@@ -69,6 +69,8 @@ macro_rules! map_feature_as_c_define {
 }
 
 fn main() {
+    println!("cargo::rustc-check-cfg=cfg(__cbindgen_hack__, values(\"yes\"))");
+
     if !running_self() {
         return;
     }
