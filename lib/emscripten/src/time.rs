@@ -273,9 +273,12 @@ fn render_strftime(format_string: &str, tm: &guest_tm) -> String {
                 year.rem_euclid(100)
             )),
             Some('e') => output.push_str(&format!("{:2}", tm.tm_mday)),
-            Some('F') => {
-                output.push_str(&format!("{:04}-{:02}-{:02}", year, tm.tm_mon + 1, tm.tm_mday))
-            }
+            Some('F') => output.push_str(&format!(
+                "{:04}-{:02}-{:02}",
+                year,
+                tm.tm_mon + 1,
+                tm.tm_mday
+            )),
             Some('H') => output.push_str(&format!("{:02}", tm.tm_hour)),
             Some('I') => {
                 let hour = match tm.tm_hour.rem_euclid(12) {
