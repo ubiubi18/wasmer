@@ -12,7 +12,7 @@ autoexamples = false
 [dependencies]
 wasmer = { version = "=2.3.0", path = "lib/api", default-features = false }
 wasmer-compiler = { version = "=2.3.0", path = "lib/compiler" }
-wasmer-compiler-cranelift = { version = "=2.3.0", path = "lib/compiler-cranelift", optional = true }
+wasmer-compiler-singlepass = { version = "=2.3.0", path = "lib/compiler-singlepass", optional = true }
 wasmer-compiler-llvm = { version = "=2.3.0", path = "lib/compiler-llvm", optional = true }
 wasmer-emscripten = { version = "=2.3.0", path = "lib/emscripten", optional = true }
 wasmer-engine = { version = "=2.3.0", path = "lib/engine" }
@@ -35,7 +35,7 @@ members = [
     "lib/cli",
     "lib/cli-compiler",
     "lib/compiler",
-    "lib/compiler-cranelift",
+    "lib/compiler-singlepass",
     "lib/compiler-llvm",
     "lib/derive",
     "lib/emscripten",
@@ -119,8 +119,8 @@ compiler = [
     "wasmer-engine-dylib/compiler",
     "wasmer-engine-staticlib/compiler",
 ]
-cranelift = [
-    "wasmer-compiler-cranelift",
+singlepass = [
+    "wasmer-compiler-singlepass",
     "compiler",
 ]
 llvm = [
@@ -130,8 +130,8 @@ llvm = [
 middlewares = ["wasmer-middlewares"]
 
 # Testing features
-test-cranelift = [
-    "cranelift",
+test-singlepass = [
+    "singlepass",
 ]
 test-llvm = [
     "llvm",

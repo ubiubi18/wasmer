@@ -1,16 +1,16 @@
 use dynasmrt::{aarch64::Aarch64Relocation, VecAssembler};
 #[cfg(feature = "unwind")]
-use gimli::{AArch64, write::CallFrameInstruction};
+use gimli::{write::CallFrameInstruction, AArch64};
 
+use wasmer_compiler::wasmparser::Type as WpType;
 use wasmer_compiler::{
     CallingConvention, CustomSection, FunctionBody, InstructionAddressMap, Relocation,
     RelocationKind, RelocationTarget, SourceLoc, TrapInformation,
 };
-use wasmer_compiler::wasmparser::Type as WpType;
 use wasmer_types::{FunctionIndex, FunctionType, TrapCode, VMOffsets};
 
-use crate::arm64_decl::{GPR, NEON};
 use crate::arm64_decl::new_machine_state;
+use crate::arm64_decl::{GPR, NEON};
 use crate::common_decl::*;
 use crate::emitter_arm64::*;
 use crate::location::Location as AbstractLocation;
@@ -1666,12 +1666,13 @@ impl Machine for MachineARM64 {
                 6 => Location::GPR(GPR::X6),
                 7 => Location::GPR(GPR::X7),
                 _ => {
-                    let sz = 1 << match sz {
-                        Size::S8 => 0,
-                        Size::S16 => 1,
-                        Size::S32 => 2,
-                        Size::S64 => 3,
-                    };
+                    let sz = 1
+                        << match sz {
+                            Size::S8 => 0,
+                            Size::S16 => 1,
+                            Size::S32 => 2,
+                            Size::S64 => 3,
+                        };
                     // align first
                     if sz > 1 && *stack_args & (sz - 1) != 0 {
                         *stack_args = (*stack_args + (sz - 1)) & !(sz - 1);
@@ -1717,12 +1718,13 @@ impl Machine for MachineARM64 {
                 6 => Location::GPR(GPR::X6),
                 7 => Location::GPR(GPR::X7),
                 _ => {
-                    let sz = 1 << match sz {
-                        Size::S8 => 0,
-                        Size::S16 => 1,
-                        Size::S32 => 2,
-                        Size::S64 => 3,
-                    };
+                    let sz = 1
+                        << match sz {
+                            Size::S8 => 0,
+                            Size::S16 => 1,
+                            Size::S32 => 2,
+                            Size::S64 => 3,
+                        };
                     // align first
                     if sz > 1 && *stack_args & (sz - 1) != 0 {
                         *stack_args = (*stack_args + (sz - 1)) & !(sz - 1);

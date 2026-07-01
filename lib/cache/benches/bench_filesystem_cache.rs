@@ -4,7 +4,7 @@ use tempfile::TempDir;
 use wasmer::{Module, Store};
 use wasmer_cache::Cache;
 use wasmer_cache::{FileSystemCache, Hash};
-use wasmer_compiler_cranelift::Cranelift;
+use wasmer_compiler_singlepass::Singlepass;
 use wasmer_engine_dylib::Dylib;
 use wasmer_engine_universal::Universal;
 
@@ -15,7 +15,7 @@ fn random_key() -> Hash {
 pub fn store_cache_universal(c: &mut Criterion) {
     let tmp_dir = TempDir::new().unwrap();
     let mut fs_cache = FileSystemCache::new(tmp_dir.path()).unwrap();
-    let compiler = Cranelift::default();
+    let compiler = Singlepass::default();
     let store = Store::new(&Universal::new(compiler).engine());
     let module = Module::new(
         &store,
@@ -34,7 +34,7 @@ pub fn store_cache_universal(c: &mut Criterion) {
 pub fn load_cache_universal(c: &mut Criterion) {
     let tmp_dir = TempDir::new().unwrap();
     let mut fs_cache = FileSystemCache::new(tmp_dir.path()).unwrap();
-    let compiler = Cranelift::default();
+    let compiler = Singlepass::default();
     let store = Store::new(&Universal::new(compiler).engine());
     let module = Module::new(
         &store,
@@ -52,7 +52,7 @@ pub fn load_cache_universal(c: &mut Criterion) {
 pub fn store_cache_native(c: &mut Criterion) {
     let tmp_dir = TempDir::new().unwrap();
     let mut fs_cache = FileSystemCache::new(tmp_dir.path()).unwrap();
-    let compiler = Cranelift::default();
+    let compiler = Singlepass::default();
     let store = Store::new(&Dylib::new(compiler).engine());
     let module = Module::new(
         &store,
@@ -71,7 +71,7 @@ pub fn store_cache_native(c: &mut Criterion) {
 pub fn load_cache_native(c: &mut Criterion) {
     let tmp_dir = TempDir::new().unwrap();
     let mut fs_cache = FileSystemCache::new(tmp_dir.path()).unwrap();
-    let compiler = Cranelift::default();
+    let compiler = Singlepass::default();
     let store = Store::new(&Dylib::new(compiler).engine());
     let module = Module::new(
         &store,

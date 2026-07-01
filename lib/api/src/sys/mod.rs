@@ -80,21 +80,21 @@ pub mod vm {
 pub use wat::parse_bytes as wat2wasm;
 
 // The compilers are mutually exclusive
-#[cfg(all(feature = "default-llvm", feature = "default-cranelift"))]
+#[cfg(all(feature = "default-llvm", feature = "default-singlepass"))]
 compile_error!(
-    r#"The `default-cranelift` and `default-llvm` features are mutually exclusive.
+    r#"The `default-singlepass` and `default-llvm` features are mutually exclusive.
 If you wish to use more than one compiler, you can simply create the own store. Eg.:
 
 ```
-use wasmer::{Cranelift, Store, Universal};
+use wasmer::{Singlepass, Store, Universal};
 
-let engine = Universal::new(Cranelift::default()).engine();
+let engine = Universal::new(Singlepass::default()).engine();
 let store = Store::new(&engine);
 ```"#
 );
 
-#[cfg(feature = "cranelift")]
-pub use wasmer_compiler_cranelift::{Cranelift, CraneliftOptLevel};
+#[cfg(feature = "singlepass")]
+pub use wasmer_compiler_singlepass::Singlepass;
 
 #[cfg(feature = "llvm")]
 pub use wasmer_compiler_llvm::{LLVMOptLevel, LLVM};

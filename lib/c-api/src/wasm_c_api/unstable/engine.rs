@@ -143,9 +143,9 @@ pub extern "C" fn wasm_config_canonicalize_nans(config: &mut wasm_config_t, enab
 #[cfg(feature = "compiler")]
 pub extern "C" fn wasmer_is_compiler_available(compiler: wasmer_compiler_t) -> bool {
     match compiler {
-        wasmer_compiler_t::CRANELIFT if cfg!(feature = "cranelift") => true,
+        wasmer_compiler_t::CRANELIFT => false,
         wasmer_compiler_t::LLVM if cfg!(feature = "llvm") => true,
-        wasmer_compiler_t::SINGLEPASS => false,
+        wasmer_compiler_t::SINGLEPASS if cfg!(feature = "singlepass") => true,
         _ => false,
     }
 }
@@ -198,16 +198,16 @@ mod tests {
 
     #[test]
     fn test_wasmer_is_compiler_available() {
+        set_var("CRANELIFT", "0");
+        set_var("LLVM", if cfg!(feature = "llvm") { "1" } else { "0" });
         set_var(
-            "CRANELIFT",
-            if cfg!(feature = "cranelift") {
+            "SINGLEPASS",
+            if cfg!(feature = "singlepass") {
                 "1"
             } else {
                 "0"
             },
         );
-        set_var("LLVM", if cfg!(feature = "llvm") { "1" } else { "0" });
-        set_var("SINGLEPASS", "0");
 
         (assert_c! {
             #include "tests/wasmer.h"

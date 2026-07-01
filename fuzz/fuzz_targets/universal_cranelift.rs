@@ -3,7 +3,7 @@
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary, fuzz_target};
 use wasm_smith::{Config, ConfiguredModule};
 use wasmer::{imports, CompilerConfig, Instance, Module, Store};
-use wasmer_compiler_cranelift::Cranelift;
+use wasmer_compiler_singlepass::Singlepass;
 use wasmer_engine_universal::Universal;
 
 #[derive(Arbitrary, Debug, Default, Copy, Clone)]
@@ -39,7 +39,7 @@ fuzz_target!(|module: WasmSmithModule| {
         return;
     }
 
-    let mut compiler = Cranelift::default();
+    let mut compiler = Singlepass::default();
     compiler.canonicalize_nans(true);
     compiler.enable_verifier();
     let store = Store::new(&Universal::new(compiler).engine());

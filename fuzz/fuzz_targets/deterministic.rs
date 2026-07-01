@@ -3,8 +3,8 @@
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary, fuzz_target};
 use wasm_smith::{Config, ConfiguredModule};
 use wasmer::{CompilerConfig, Engine, Module, Store};
-use wasmer_compiler_cranelift::Cranelift;
 use wasmer_compiler_llvm::LLVM;
+use wasmer_compiler_singlepass::Singlepass;
 use wasmer_engine_dylib::Dylib;
 use wasmer_engine_universal::Universal;
 
@@ -42,7 +42,7 @@ fn compile_and_compare(name: &str, engine: impl Engine, wasm: &[u8]) {
 fuzz_target!(|module: ConfiguredModule<NoImportsConfig>| {
     let wasm_bytes = module.to_bytes();
 
-    let mut compiler = Cranelift::default();
+    let mut compiler = Singlepass::default();
     compiler.canonicalize_nans(true);
     compiler.enable_verifier();
     compile_and_compare(

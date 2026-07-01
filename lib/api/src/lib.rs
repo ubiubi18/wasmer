@@ -86,8 +86,8 @@
 //!
 //! * **Pluggable compilers** — A compiler is used by an engine to
 //!   transform WebAssembly into executable code:
-//!   * [`wasmer-compiler-cranelift`] provides the right balance between
-//!     compilation-time and runtime performance, useful for development,
+//!   * [`wasmer-compiler-singlepass`] provides fast one-pass compilation,
+//!     useful for deterministic and resource-bounded environments,
 //!   * [`wasmer-compiler-llvm`] provides a deeply optimized executable
 //!     code with the fastest runtime speed, ideal for production.
 //!     
@@ -110,10 +110,9 @@
 //!   compilers available, it's the one available in the JavaScript
 //!   environment that will be used.
 //!
-//! Wasmer ships by default with the Cranelift compiler as its great for
-//! development purposes.  However, we strongly encourage to use the LLVM
-//! compiler in production as it performs about 50% faster, achieving
-//! near-native speeds.
+//! This fork ships by default with the Singlepass compiler to avoid the
+//! vulnerable Cranelift codegen dependency line. LLVM remains available for
+//! optimized native builds.
 //!
 //! Note: if one wants to use multiple compilers at the same time, it's
 //! also possible! One will need to import them directly via each of the
@@ -303,10 +302,10 @@
 //! set defaults.
 //!
 //! The features that enable new functionality are:
-//! - `cranelift`
-#![cfg_attr(feature = "cranelift", doc = "(enabled),")]
-#![cfg_attr(not(feature = "cranelift"), doc = "(disabled),")]
-//!   enables Wasmer's [Cranelift compiler][wasmer-compiler-cranelift],
+//! - `singlepass`
+#![cfg_attr(feature = "singlepass", doc = "(enabled),")]
+#![cfg_attr(not(feature = "singlepass"), doc = "(disabled),")]
+//!   enables Wasmer's [Singlepass compiler][wasmer-compiler-singlepass],
 //! - `llvm`
 #![cfg_attr(feature = "llvm", doc = "(enabled),")]
 #![cfg_attr(not(feature = "llvm"), doc = "(disabled),")]
@@ -327,10 +326,10 @@
 //! The features that set defaults come in sets that are mutually exclusive.
 //!
 //! The first set is the default compiler set:
-//! - `default-cranelift`
-#![cfg_attr(feature = "default-cranelift", doc = "(enabled),")]
-#![cfg_attr(not(feature = "default-cranelift"), doc = "(disabled),")]
-//!   set Wasmer's Cranelift compiler as the default,
+//! - `default-singlepass`
+#![cfg_attr(feature = "default-singlepass", doc = "(enabled),")]
+#![cfg_attr(not(feature = "default-singlepass"), doc = "(disabled),")]
+//!   set Wasmer's Singlepass compiler as the default,
 //! - `default-llvm`
 #![cfg_attr(feature = "default-llvm", doc = "(enabled),")]
 #![cfg_attr(not(feature = "default-llvm"), doc = "(disabled),")]
@@ -426,7 +425,7 @@
 //! [`wasmer-engine-dylib`]: https://docs.rs/wasmer-engine-dylib/
 //! [`wasmer-engine-staticlib`]: https://docs.rs/wasmer-engine-staticlib/
 //! [`wasmer-compiler-llvm`]: https://docs.rs/wasmer-compiler-llvm/
-//! [`wasmer-compiler-cranelift`]: https://docs.rs/wasmer-compiler-cranelift/
+//! [`wasmer-compiler-singlepass`]: https://docs.rs/wasmer-compiler-singlepass/
 //! [`wasmer-wasi`]: https://docs.rs/wasmer-wasi/
 //! [`wasm-pack`]: https://github.com/rustwasm/wasm-pack/
 //! [`wasm-bindgen`]: https://github.com/rustwasm/wasm-bindgen

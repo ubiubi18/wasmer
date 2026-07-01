@@ -28,15 +28,15 @@ use wasmer_engine_universal::Universal;
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
 pub enum wasmer_compiler_t {
-    /// Variant to represent the Cranelift compiler. See the
-    /// [`wasmer_compiler_cranelift`] Rust crate.
+    /// Variant retained for ABI compatibility. Cranelift is unsupported in this fork.
     CRANELIFT = 0,
 
     /// Variant to represent the LLVM compiler. See the
     /// [`wasmer_compiler_llvm`] Rust crate.
     LLVM = 1,
 
-    /// Variant retained for ABI compatibility. Singlepass is unsupported in this fork.
+    /// Variant to represent the Singlepass compiler. See the
+    /// [`wasmer_compiler_singlepass`] Rust crate.
     SINGLEPASS = 2,
 }
 
@@ -44,8 +44,8 @@ pub enum wasmer_compiler_t {
 impl Default for wasmer_compiler_t {
     fn default() -> Self {
         cfg_if! {
-            if #[cfg(feature = "cranelift")] {
-                Self::CRANELIFT
+            if #[cfg(feature = "singlepass")] {
+                Self::SINGLEPASS
             } else if #[cfg(feature = "llvm")] {
                 Self::LLVM
             } else {
@@ -289,8 +289,8 @@ use wasmer_api::CompilerConfig;
 #[cfg(all(feature = "compiler", any(feature = "universal", feature = "dylib")))]
 fn get_default_compiler_config() -> Box<dyn CompilerConfig> {
     cfg_if! {
-        if #[cfg(feature = "cranelift")] {
-            Box::new(wasmer_compiler_cranelift::Cranelift::default())
+        if #[cfg(feature = "singlepass")] {
+            Box::new(wasmer_compiler_singlepass::Singlepass::default())
         } else if #[cfg(feature = "llvm")] {
             Box::new(wasmer_compiler_llvm::LLVM::default())
         } else {
@@ -441,13 +441,7 @@ pub extern "C" fn wasm_engine_new_with_config(
             #[allow(unused_mut)]
             let mut compiler_config: Box<dyn CompilerConfig> = match config.compiler {
                 wasmer_compiler_t::CRANELIFT => {
-                    cfg_if! {
-                        if #[cfg(feature = "cranelift")] {
-                            Box::new(wasmer_compiler_cranelift::Cranelift::default())
-                        } else {
-                            return return_with_error("Wasmer has not been compiled with the `cranelift` feature.");
-                        }
-                    }
+                    return return_with_error("Wasmer has not been compiled with the `cranelift` feature.");
                 },
                 wasmer_compiler_t::LLVM => {
                     cfg_if! {
@@ -459,7 +453,13 @@ pub extern "C" fn wasm_engine_new_with_config(
                     }
                 },
                 wasmer_compiler_t::SINGLEPASS => {
-                    return return_with_error("Wasmer has not been compiled with the `singlepass` feature.");
+                    cfg_if! {
+                        if #[cfg(feature = "singlepass")] {
+                            Box::new(wasmer_compiler_singlepass::Singlepass::default())
+                        } else {
+                            return return_with_error("Wasmer has not been compiled with the `singlepass` feature.");
+                        }
+                    }
                 },
             };
 

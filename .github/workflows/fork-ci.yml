@@ -39,13 +39,16 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Check core API
-        run: cargo check -p wasmer --no-default-features --features cranelift,universal
+        run: cargo check -p wasmer --no-default-features --features compiler,universal,singlepass
 
       - name: Check headless CLI
         run: cargo check -p wasmer-cli --no-default-features --features headless-minimal,wasmer/sys
 
       - name: Check C API
-        run: cargo check -p wasmer-c-api --no-default-features --features compiler,cranelift,universal
+        run: cargo check -p wasmer-c-api --no-default-features --features compiler,singlepass,universal
+
+      - name: Check compiler CLI
+        run: cargo check -p wasmer-compiler-cli --no-default-features --features singlepass
 
       - name: Check cache benches
         run: cargo check -p wasmer-cache --benches

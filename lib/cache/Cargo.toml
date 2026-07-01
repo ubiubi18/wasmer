@@ -20,7 +20,7 @@ blake3 = "1.0"
 criterion = "0.3"
 tempfile = "3"
 rand = "0.8.3"
-wasmer-compiler-cranelift = { path = "../compiler-cranelift", version = "=2.3.0" }
+wasmer-compiler-singlepass = { path = "../compiler-singlepass", version = "=2.3.0" }
 wasmer-engine-universal = { path = "../engine-universal", version = "=2.3.0" }
 wasmer-engine-dylib = { path = "../engine-dylib", version = "=2.3.0", features = ["compiler"] }
 

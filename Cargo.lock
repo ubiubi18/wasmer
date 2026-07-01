@@ -406,74 +406,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cranelift-bforest"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "749d0d6022c9038dccf480bdde2a38d435937335bf2bb0f14e815d94517cdce8"
-dependencies = [
- "cranelift-entity",
-]
-
-[[package]]
-name = "cranelift-codegen"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e94370cc7b37bf652ccd8bb8f09bd900997f7ccf97520edfc75554bb5c4abbea"
-dependencies = [
- "cranelift-bforest",
- "cranelift-codegen-meta",
- "cranelift-codegen-shared",
- "cranelift-entity",
- "cranelift-isle",
- "gimli 0.26.2",
- "hashbrown 0.11.2",
- "log",
- "regalloc2",
- "smallvec",
- "target-lexicon 0.12.16",
-]
-
-[[package]]
-name = "cranelift-codegen-meta"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0a3cea8fdab90e44018c5b9a1dfd460d8ee265ac354337150222a354628bdb6"
-dependencies = [
- "cranelift-codegen-shared",
-]
-
-[[package]]
-name = "cranelift-codegen-shared"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ac72f76f2698598951ab26d8c96eaa854810e693e7dd52523958b5909fde6b2"
-
-[[package]]
-name = "cranelift-entity"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09eaeacfcd2356fe0e66b295e8f9d59fdd1ac3ace53ba50de14d628ec902f72d"
-
-[[package]]
-name = "cranelift-frontend"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dba69c9980d5ffd62c18a2bde927855fcd7c8dc92f29feaf8636052662cbd99c"
-dependencies = [
- "cranelift-codegen",
- "hashbrown 0.11.2",
- "log",
- "smallvec",
- "target-lexicon 0.12.16",
-]
-
-[[package]]
-name = "cranelift-isle"
-version = "0.85.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2920dc1e05cac40304456ed3301fde2c09bd6a9b0210bcfa2f101398d628d5b"
-
-[[package]]
 name = "crc32fast"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -684,6 +616,32 @@ name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
+
+[[package]]
+name = "dynasm"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "add9a102807b524ec050363f09e06f1504214b0e1c7797f64261c891022dce8b"
+dependencies = [
+ "bitflags 1.2.1",
+ "byteorder",
+ "lazy_static",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "dynasmrt"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64fba5a42bd76a17cad4bfa00de168ee1cbfa06a5e8ce992ae880218c05641a9"
+dependencies = [
+ "byteorder",
+ "dynasm",
+ "memmap2 0.5.10",
+]
 
 [[package]]
 name = "either"
@@ -912,15 +870,6 @@ dependencies = [
  "memchr",
  "pin-project-lite",
  "slab",
-]
-
-[[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
@@ -1406,6 +1355,15 @@ name = "memchr"
 version = "2.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88904434abc2901f197fe8cc55f0445e7ded921dba5911dad2e2b39b48e663c4"
+
+[[package]]
+name = "memmap2"
+version = "0.5.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83faa42c0a078c393f6b29d5db232d8be22776a891f8f56e5284faee4a20b327"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "memmap2"
@@ -1947,18 +1905,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0d51660a68078997855ba5602f73ab3a5031bd7ad480a9d4c90fbbf04e1fff0"
 
 [[package]]
-name = "regalloc2"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a8d23b35d7177df3b9d31ed8a9ab4bf625c668be77a319d4f5efd4a5257701c"
-dependencies = [
- "fxhash",
- "log",
- "slice-group-by",
- "smallvec",
-]
-
-[[package]]
 name = "regex"
 version = "1.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2350,12 +2296,6 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
-
-[[package]]
-name = "slice-group-by"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
 
 [[package]]
 name = "smallvec"
@@ -3095,8 +3035,8 @@ dependencies = [
  "wasm-bindgen-test",
  "wasmer-artifact",
  "wasmer-compiler",
- "wasmer-compiler-cranelift",
  "wasmer-compiler-llvm",
+ "wasmer-compiler-singlepass",
  "wasmer-derive",
  "wasmer-engine",
  "wasmer-engine-dylib",
@@ -3127,8 +3067,8 @@ dependencies = [
  "libfuzzer-sys",
  "wasm-smith",
  "wasmer",
- "wasmer-compiler-cranelift",
  "wasmer-compiler-llvm",
+ "wasmer-compiler-singlepass",
  "wasmer-engine-dylib",
  "wasmer-engine-universal",
  "wasmer-middlewares",
@@ -3151,8 +3091,8 @@ dependencies = [
  "thiserror",
  "typetag",
  "wasmer",
- "wasmer-compiler-cranelift",
  "wasmer-compiler-llvm",
+ "wasmer-compiler-singlepass",
  "wasmer-emscripten",
  "wasmer-engine",
  "wasmer-engine-dylib",
@@ -3174,7 +3114,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "wasmer",
- "wasmer-compiler-cranelift",
+ "wasmer-compiler-singlepass",
  "wasmer-engine-dylib",
  "wasmer-engine-universal",
 ]
@@ -3196,8 +3136,8 @@ dependencies = [
  "wasmer",
  "wasmer-cache",
  "wasmer-compiler",
- "wasmer-compiler-cranelift",
  "wasmer-compiler-llvm",
+ "wasmer-compiler-singlepass",
  "wasmer-emscripten",
  "wasmer-engine",
  "wasmer-engine-dylib",
@@ -3243,28 +3183,8 @@ dependencies = [
  "tempfile",
  "unix_mode",
  "wasmer-compiler",
- "wasmer-compiler-cranelift",
+ "wasmer-compiler-singlepass",
  "wasmer-engine-universal-artifact",
- "wasmer-types",
-]
-
-[[package]]
-name = "wasmer-compiler-cranelift"
-version = "2.3.0"
-dependencies = [
- "cranelift-codegen",
- "cranelift-entity",
- "cranelift-frontend",
- "gimli 0.26.2",
- "hashbrown 0.11.2",
- "lazy_static",
- "loupe",
- "more-asserts",
- "rayon",
- "smallvec",
- "target-lexicon 0.12.16",
- "tracing",
- "wasmer-compiler",
  "wasmer-types",
 ]
 
@@ -3289,6 +3209,25 @@ dependencies = [
  "wasmer-compiler",
  "wasmer-types",
  "wasmer-vm",
+]
+
+[[package]]
+name = "wasmer-compiler-singlepass"
+version = "2.3.0"
+dependencies = [
+ "byteorder",
+ "dynasm",
+ "dynasmrt",
+ "gimli 0.26.2",
+ "hashbrown 0.11.2",
+ "lazy_static",
+ "loupe",
+ "more-asserts",
+ "rayon",
+ "smallvec",
+ "target-lexicon 0.12.16",
+ "wasmer-compiler",
+ "wasmer-types",
 ]
 
 [[package]]
@@ -3323,7 +3262,7 @@ dependencies = [
  "enumset",
  "lazy_static",
  "loupe",
- "memmap2",
+ "memmap2 0.9.11",
  "more-asserts",
  "rustc-demangle",
  "serde",
@@ -3595,8 +3534,8 @@ dependencies = [
  "wasmer",
  "wasmer-cache",
  "wasmer-compiler",
- "wasmer-compiler-cranelift",
  "wasmer-compiler-llvm",
+ "wasmer-compiler-singlepass",
  "wasmer-emscripten",
  "wasmer-engine",
  "wasmer-engine-dummy",

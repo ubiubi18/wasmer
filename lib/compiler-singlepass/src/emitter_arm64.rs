@@ -2465,12 +2465,13 @@ pub fn gen_std_trampoline_arm64(
             _ => {
                 match calling_convention {
                     CallingConvention::AppleAarch64 => {
-                        let sz = 1 << match sz {
-                            Size::S8 => 0,
-                            Size::S16 => 1,
-                            Size::S32 => 2,
-                            Size::S64 => 3,
-                        };
+                        let sz = 1
+                            << match sz {
+                                Size::S8 => 0,
+                                Size::S16 => 1,
+                                Size::S32 => 2,
+                                Size::S64 => 3,
+                            };
                         // align first
                         if sz > 1 && caller_stack_offset & (sz - 1) != 0 {
                             caller_stack_offset = (caller_stack_offset + (sz - 1)) & !(sz - 1);
@@ -2491,12 +2492,13 @@ pub fn gen_std_trampoline_arm64(
                 );
                 match calling_convention {
                     CallingConvention::AppleAarch64 => {
-                        caller_stack_offset += 1 << match sz {
-                            Size::S8 => 0,
-                            Size::S16 => 1,
-                            Size::S32 => 2,
-                            Size::S64 => 3,
-                        };
+                        caller_stack_offset += 1
+                            << match sz {
+                                Size::S8 => 0,
+                                Size::S16 => 1,
+                                Size::S32 => 2,
+                                Size::S64 => 3,
+                            };
                     }
                     _ => {
                         caller_stack_offset += 8;
