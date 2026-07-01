@@ -44,3 +44,4 @@ maintenance = { status = "actively-developed" }
 [features]
 default = []
 enable-rkyv = ["rkyv"]
+cargo-clippy = []

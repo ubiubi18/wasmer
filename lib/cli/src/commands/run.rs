@@ -1,11 +1,16 @@
+#[cfg(feature = "cache")]
 use crate::common::get_cache_dir;
 #[cfg(feature = "debug")]
 use crate::logging;
-use crate::store::{CompilerType, EngineType, StoreOptions};
+#[cfg(feature = "cache")]
+use crate::store::EngineType;
+use crate::store::{CompilerType, StoreOptions};
 use crate::suggestions::suggest_function_exports;
+#[cfg(any(feature = "wasi", feature = "cache"))]
 use crate::warning;
 use anyhow::{anyhow, Context, Result};
 use std::path::PathBuf;
+#[cfg(feature = "cache")]
 use std::str::FromStr;
 use wasmer::*;
 #[cfg(feature = "cache")]
@@ -38,6 +43,7 @@ pub struct Run {
     /// The command name is a string that will override the first argument passed
     /// to the wasm program. This is used in wapm to provide nicer output in
     /// help commands and error messages of the running wasm program
+    #[cfg(any(feature = "wasi", feature = "emscripten"))]
     #[structopt(long = "command-name", hidden = true)]
     command_name: Option<String>,
 
@@ -57,7 +63,7 @@ pub struct Run {
     wasi: Wasi,
 
     /// Enable non-standard experimental IO devices
-    #[cfg(feature = "io-devices")]
+    #[cfg(feature = "experimental-io-devices")]
     #[structopt(long = "enable-io-devices")]
     enable_experimental_io_devices: bool,
 
@@ -447,7 +453,7 @@ impl Run {
         })
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "wasi"))]
     fn from_binfmt_args_fallible() -> Result<Run> {
         let argv = std::env::args_os().collect::<Vec<_>>();
         let (_interpreter, executable, original_executable, args) = match &argv[..] {
@@ -487,7 +493,7 @@ impl Run {
             ..Self::default()
         })
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(all(target_os = "linux", feature = "wasi")))]
     fn from_binfmt_args_fallible() -> Result<Run> {
         bail!("binfmt_misc is only available on linux.")
     }

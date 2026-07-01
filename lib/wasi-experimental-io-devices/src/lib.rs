@@ -121,7 +121,7 @@ impl FrameBufferState {
                 self.push_input_event(InputEvent::KeyRelease(key))?;
             }
         }
-        let keys = self.window.get_keys_pressed(KeyRepeat::No)?;
+        let keys = self.window.get_keys_pressed(KeyRepeat::No);
         for key in keys {
             self.keys_pressed.insert(key);
             self.push_input_event(InputEvent::KeyPress(key))?;

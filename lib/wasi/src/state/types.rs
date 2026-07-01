@@ -227,6 +227,7 @@ pub(crate) fn poll(
     unimplemented!("VirtualFile::poll is not implemented for non-Unix-like targets yet");
 }
 
+#[allow(dead_code)]
 pub trait WasiPath {}
 
 /// For piping stdio. Stores all output / input in a byte-vector.

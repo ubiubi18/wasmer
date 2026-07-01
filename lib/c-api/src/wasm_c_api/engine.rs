@@ -36,8 +36,7 @@ pub enum wasmer_compiler_t {
     /// [`wasmer_compiler_llvm`] Rust crate.
     LLVM = 1,
 
-    /// Variant to represent the Singlepass compiler. See the
-    /// [`wasmer_compiler_singlepass`] Rust crate.
+    /// Variant retained for ABI compatibility. Singlepass is unsupported in this fork.
     SINGLEPASS = 2,
 }
 
@@ -49,8 +48,6 @@ impl Default for wasmer_compiler_t {
                 Self::CRANELIFT
             } else if #[cfg(feature = "llvm")] {
                 Self::LLVM
-            } else if #[cfg(feature = "singlepass")] {
-                Self::SINGLEPASS
             } else {
                 compile_error!("Please enable one of the compiler backends")
             }
@@ -201,7 +198,7 @@ pub extern "C" fn wasm_config_delete(_config: Option<Box<wasm_config_t>>) {}
 ///     else if (wasmer_is_compiler_available(LLVM)) {
 ///         wasm_config_set_compiler(config, LLVM);
 ///     }
-///     // Or maybe Singlepass?
+///     // Singlepass is retained for ABI compatibility but reports unavailable.
 ///     else if (wasmer_is_compiler_available(SINGLEPASS)) {
 ///         wasm_config_set_compiler(config, SINGLEPASS);
 ///     }
@@ -296,8 +293,6 @@ fn get_default_compiler_config() -> Box<dyn CompilerConfig> {
             Box::new(wasmer_compiler_cranelift::Cranelift::default())
         } else if #[cfg(feature = "llvm")] {
             Box::new(wasmer_compiler_llvm::LLVM::default())
-        } else if #[cfg(feature = "singlepass")] {
-            Box::new(wasmer_compiler_singlepass::Singlepass::default())
         } else {
             compile_error!("Please enable one of the compiler backends")
         }
@@ -464,13 +459,7 @@ pub extern "C" fn wasm_engine_new_with_config(
                     }
                 },
                 wasmer_compiler_t::SINGLEPASS => {
-                    cfg_if! {
-                        if #[cfg(feature = "singlepass")] {
-                            Box::new(wasmer_compiler_singlepass::Singlepass::default())
-                        } else {
-                            return return_with_error("Wasmer has not been compiled with the `singlepass` feature.");
-                        }
-                    }
+                    return return_with_error("Wasmer has not been compiled with the `singlepass` feature.");
                 },
             };
 

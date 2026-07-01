@@ -128,7 +128,7 @@ impl WasiEnv {
     /// Be careful when using this in host functions that call into Wasm:
     /// if the lock is held and the Wasm calls into a host function that tries
     /// to lock this mutex, the program will deadlock.
-    pub fn state(&self) -> MutexGuard<WasiState> {
+    pub fn state(&self) -> MutexGuard<'_, WasiState> {
         self.state.lock().unwrap()
     }
 
@@ -141,7 +141,7 @@ impl WasiEnv {
     pub(crate) fn get_memory_and_wasi_state(
         &self,
         _mem_index: u32,
-    ) -> (&Memory, MutexGuard<WasiState>) {
+    ) -> (&Memory, MutexGuard<'_, WasiState>) {
         let memory = self.memory();
         let state = self.state.lock().unwrap();
         (memory, state)

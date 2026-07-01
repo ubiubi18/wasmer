@@ -9,8 +9,6 @@ use wasmer::{imports, CompilerConfig, Instance, Module, Store, Val};
 use wasmer_compiler_cranelift::Cranelift;
 #[cfg(feature = "llvm")]
 use wasmer_compiler_llvm::LLVM;
-#[cfg(feature = "singlepass")]
-use wasmer_compiler_singlepass::Singlepass;
 use wasmer_engine_universal::Universal;
 
 #[derive(Arbitrary, Debug, Default, Copy, Clone)]
@@ -43,25 +41,6 @@ impl std::fmt::Debug for WasmSmithModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&wasmprinter::print_bytes(self.0.to_bytes()).unwrap())
     }
-}
-
-#[cfg(feature = "singlepass")]
-fn maybe_instantiate_singlepass(wasm_bytes: &[u8]) -> Result<Option<Instance>> {
-    let compiler = Singlepass::default();
-    let store = Store::new(&Universal::new(compiler).engine());
-    let module = Module::new(&store, &wasm_bytes);
-    let module = match module {
-        Ok(m) => m,
-        Err(e) => {
-            let error_message = format!("{}", e);
-            if error_message.contains("Validation error: invalid result arity: func type returns multiple values") || error_message.contains("Validation error: blocks, loops, and ifs may only produce a resulttype when multi-value is not enabled") || error_message.contains("multi-value returns not yet implemented") {
-                return Ok(None);
-            }
-            return Err(e.into());
-        }
-    };
-    let instance = Instance::new(&module, &imports! {})?;
-    Ok(Some(instance))
 }
 
 #[cfg(feature = "cranelift")]
@@ -179,10 +158,6 @@ fuzz_target!(|module: WasmSmithModule| {
         return;
     }
 
-    #[cfg(feature = "singlepass")]
-    let singlepass = maybe_instantiate_singlepass(&wasm_bytes)
-        .transpose()
-        .map(evaluate_instance);
     #[cfg(feature = "cranelift")]
     let cranelift = maybe_instantiate_cranelift(&wasm_bytes)
         .transpose()
@@ -192,14 +167,6 @@ fuzz_target!(|module: WasmSmithModule| {
         .transpose()
         .map(evaluate_instance);
 
-    #[cfg(all(feature = "singlepass", feature = "cranelift"))]
-    if singlepass.is_some() && cranelift.is_some() {
-        assert_eq!(singlepass.as_ref().unwrap(), cranelift.as_ref().unwrap());
-    }
-    #[cfg(all(feature = "singlepass", feature = "llvm"))]
-    if singlepass.is_some() && llvm.is_some() {
-        assert_eq!(singlepass.as_ref().unwrap(), llvm.as_ref().unwrap());
-    }
     #[cfg(all(feature = "cranelift", feature = "llvm"))]
     if cranelift.is_some() && llvm.is_some() {
         assert_eq!(cranelift.as_ref().unwrap(), llvm.as_ref().unwrap());

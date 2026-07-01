@@ -208,7 +208,7 @@ pub unsafe extern "C" fn wasm_func_call(
             for (slot, val) in results
                 .as_uninit_slice()
                 .iter_mut()
-                .zip(wasm_results.into_iter())
+                .zip(IntoIterator::into_iter(wasm_results))
             {
                 *slot = MaybeUninit::new(val.try_into().expect("Results conversion failed"));
             }

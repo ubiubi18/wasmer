@@ -17,18 +17,16 @@ pub struct __wasi_dirent_t {
 unsafe impl ValueType for __wasi_dirent_t {}
 
 pub fn dirent_to_le_bytes(ent: &__wasi_dirent_t) -> Vec<u8> {
-    use mem::transmute;
-
     let mut out = Vec::with_capacity(mem::size_of::<__wasi_dirent_t>());
-    let bytes: [u8; 8] = unsafe { transmute(ent.d_next.to_le()) };
+    let bytes = ent.d_next.to_le_bytes();
     for &b in &bytes {
         out.push(b);
     }
-    let bytes: [u8; 8] = unsafe { transmute(ent.d_ino.to_le()) };
+    let bytes = ent.d_ino.to_le_bytes();
     for &b in &bytes {
         out.push(b);
     }
-    let bytes: [u8; 4] = unsafe { transmute(ent.d_namlen.to_le()) };
+    let bytes = ent.d_namlen.to_le_bytes();
     for &b in &bytes {
         out.push(b);
     }

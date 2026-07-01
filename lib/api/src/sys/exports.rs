@@ -190,7 +190,7 @@ impl Exports {
     }
 
     /// Get an iterator over the exports.
-    pub fn iter(&self) -> ExportsIterator<impl Iterator<Item = (&String, &Extern)>> {
+    pub fn iter(&self) -> ExportsIterator<'_, impl Iterator<Item = (&String, &Extern)>> {
         ExportsIterator {
             iter: self.map.iter(),
         }

@@ -29,3 +29,4 @@ enable-serde = ["serde", "serde/std"]
 
 # experimental / in-development features
 experimental-reference-types-extern-ref = []
+cargo-clippy = []

@@ -31,6 +31,7 @@ enumset = "1.0"
 # Enable the `compiler` feature if you want the engine to compile
 # and not be only on headless mode.
 compiler = ["wasmer-compiler/translator"]
+cargo-clippy = []
 
 [badges]
 maintenance = { status = "actively-developed" }

@@ -22,7 +22,7 @@ enum-iterator = "0.7.0"
 
 [features]
 compiler = []
+cargo-clippy = []
 
 [badges]
 maintenance = { status = "actively-developed" }
-

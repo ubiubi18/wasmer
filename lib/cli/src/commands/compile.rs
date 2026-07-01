@@ -17,6 +17,7 @@ pub struct Compile {
     output: PathBuf,
 
     /// Output path for generated header file
+    #[cfg(feature = "staticlib")]
     #[structopt(name = "HEADER PATH", long = "header", parse(from_os_str))]
     header_path: Option<PathBuf>,
 

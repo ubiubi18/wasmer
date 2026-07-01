@@ -218,7 +218,7 @@ impl Memory {
     /// }
     /// # }
     /// ```
-    pub fn view<T: ValueType>(&self) -> MemoryView<T> {
+    pub fn view<T: ValueType>(&self) -> MemoryView<'_, T> {
         let base = self.data_ptr();
 
         let length = self.size().bytes().0 / std::mem::size_of::<T>();
@@ -230,7 +230,7 @@ impl Memory {
     ///
     /// This code is going to be refactored. Use it as your own risks.
     #[doc(hidden)]
-    pub fn uint8view(&self) -> MemoryView<u8> {
+    pub fn uint8view(&self) -> MemoryView<'_, u8> {
         self.view()
     }
 

@@ -342,7 +342,7 @@ impl Module {
     pub fn set_name(&mut self, name: &str) -> bool {
         Arc::get_mut(&mut self.artifact)
             .and_then(|artifact| artifact.module_mut())
-            .map(|mut module_info| {
+            .map(|module_info| {
                 module_info.name = Some(name.to_string());
                 true
             })

@@ -41,7 +41,6 @@ wasmer-types = { path = "../types", version = "=2.3.0" }
 target-lexicon = { version = "0.12.2", default-features = false }
 loupe = "0.1"
 # - Optional dependencies for `sys`.
-wasmer-compiler-singlepass = { path = "../compiler-singlepass", version = "=2.3.0", optional = true }
 wasmer-compiler-cranelift = { path = "../compiler-cranelift", version = "=2.3.0", optional = true }
 wasmer-compiler-llvm = { path = "../compiler-llvm", version = "=2.3.0", optional = true }
 wasmer-engine-universal = { path = "../engine-universal", version = "=2.3.0", optional = true }
@@ -85,6 +84,7 @@ maintenance = { status = "actively-developed" }
 default = ["sys-default"]
 std = []
 core = ["hashbrown"]
+cargo-clippy = []
 
 # Features for `sys`.
 sys = []
@@ -96,10 +96,6 @@ compiler = [
     "wasmer-engine-universal/compiler",
     "wasmer-engine-dylib/compiler",
 ]
-    singlepass = [
-        "compiler",
-        "wasmer-compiler-singlepass",
-    ]
     cranelift = [
         "compiler",
         "wasmer-compiler-cranelift",
@@ -109,10 +105,6 @@ compiler = [
         "wasmer-compiler-llvm",
     ]
 default-compiler = []
-    default-singlepass = [
-        "default-compiler",
-        "singlepass",
-    ]
     default-cranelift = [
         "default-compiler",
         "cranelift",
@@ -158,4 +150,4 @@ wasm-types-polyfill = ["js", "wasmparser"]
 js-serializable-module = []
 
 [package.metadata.docs.rs]
-features = ["compiler", "core", "cranelift", "default-compiler", "default-dylib", "default-engine", "dylib", "engine", "jit", "native", "singlepass", "sys", "sys-default", "universal"]
+features = ["compiler", "core", "cranelift", "default-compiler", "default-dylib", "default-engine", "dylib", "engine", "jit", "native", "sys", "sys-default", "universal"]

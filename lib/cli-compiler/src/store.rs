@@ -94,7 +94,7 @@ pub struct StoreOptions {
 #[derive(Debug, Clone, StructOpt, Default)]
 /// The compiler options
 pub struct CompilerOptions {
-    /// Use Singlepass compiler.
+    /// Use Singlepass compiler. Retained as a compatibility flag; unsupported in this fork.
     #[structopt(long, conflicts_with_all = &["cranelift", "llvm"])]
     singlepass: bool,
 
@@ -111,34 +111,23 @@ pub struct CompilerOptions {
     #[allow(dead_code)]
     enable_verifier: bool,
 
-    /// LLVM debug directory, where IR and object files will be written to.
-    #[cfg(feature = "llvm")]
-    #[structopt(long, parse(from_os_str))]
-    llvm_debug_dir: Option<PathBuf>,
-
     #[structopt(flatten)]
     features: WasmFeatures,
 }
 
 impl CompilerOptions {
     fn get_compiler(&self) -> Result<CompilerType> {
-        if self.cranelift {
+        if self.singlepass {
+            bail!("The `singlepass` compiler is not included in this fork.");
+        } else if self.cranelift {
             Ok(CompilerType::Cranelift)
         } else if self.llvm {
             Ok(CompilerType::LLVM)
-        } else if self.singlepass {
-            Ok(CompilerType::Singlepass)
         } else {
             // Auto mode, we choose the best compiler for that platform
             cfg_if::cfg_if! {
                 if #[cfg(all(feature = "cranelift", any(target_arch = "x86_64", target_arch = "aarch64")))] {
                     Ok(CompilerType::Cranelift)
-                }
-                else if #[cfg(all(feature = "singlepass", target_arch = "x86_64"))] {
-                    Ok(CompilerType::Singlepass)
-                }
-                else if #[cfg(feature = "llvm")] {
-                    Ok(CompilerType::LLVM)
                 } else {
                     bail!("There are no available compilers for your architecture");
                 }
@@ -188,14 +177,6 @@ impl CompilerOptions {
         let compiler = self.get_compiler()?;
         let compiler_config: Box<dyn CompilerConfig> = match compiler {
             CompilerType::Headless => bail!("The headless engine can't be chosen"),
-            #[cfg(feature = "singlepass")]
-            CompilerType::Singlepass => {
-                let mut config = wasmer_compiler_singlepass::Singlepass::new();
-                if self.enable_verifier {
-                    config.enable_verifier();
-                }
-                Box::new(config)
-            }
             #[cfg(feature = "cranelift")]
             CompilerType::Cranelift => {
                 let mut config = wasmer_compiler_cranelift::Cranelift::new();
@@ -204,110 +185,6 @@ impl CompilerOptions {
                 }
                 Box::new(config)
             }
-            #[cfg(feature = "llvm")]
-            CompilerType::LLVM => {
-                use std::fmt;
-                use std::fs::File;
-                use std::io::Write;
-                use wasmer_compiler_llvm::{
-                    CompiledKind, InkwellMemoryBuffer, InkwellModule, LLVMCallbacks, LLVM,
-                };
-                use wasmer_types::entity::EntityRef;
-                let mut config = LLVM::new();
-                struct Callbacks {
-                    debug_dir: PathBuf,
-                }
-                impl Callbacks {
-                    fn new(debug_dir: PathBuf) -> Result<Self> {
-                        // Create the debug dir in case it doesn't exist
-                        std::fs::create_dir_all(&debug_dir)?;
-                        Ok(Self { debug_dir })
-                    }
-                }
-                // Converts a kind into a filename, that we will use to dump
-                // the contents of the IR object file to.
-                fn types_to_signature(types: &[Type]) -> String {
-                    types
-                        .iter()
-                        .map(|ty| match ty {
-                            Type::I32 => "i".to_string(),
-                            Type::I64 => "I".to_string(),
-                            Type::F32 => "f".to_string(),
-                            Type::F64 => "F".to_string(),
-                            Type::V128 => "v".to_string(),
-                            Type::ExternRef => "e".to_string(),
-                            Type::FuncRef => "r".to_string(),
-                        })
-                        .collect::<Vec<_>>()
-                        .join("")
-                }
-                // Converts a kind into a filename, that we will use to dump
-                // the contents of the IR object file to.
-                fn function_kind_to_filename(kind: &CompiledKind) -> String {
-                    match kind {
-                        CompiledKind::Local(local_index) => {
-                            format!("function_{}", local_index.index())
-                        }
-                        CompiledKind::FunctionCallTrampoline(func_type) => format!(
-                            "trampoline_call_{}_{}",
-                            types_to_signature(&func_type.params()),
-                            types_to_signature(&func_type.results())
-                        ),
-                        CompiledKind::DynamicFunctionTrampoline(func_type) => format!(
-                            "trampoline_dynamic_{}_{}",
-                            types_to_signature(&func_type.params()),
-                            types_to_signature(&func_type.results())
-                        ),
-                        CompiledKind::Module => "module".into(),
-                    }
-                }
-                impl LLVMCallbacks for Callbacks {
-                    fn preopt_ir(&self, kind: &CompiledKind, module: &InkwellModule) {
-                        let mut path = self.debug_dir.clone();
-                        path.push(format!("{}.preopt.ll", function_kind_to_filename(kind)));
-                        module
-                            .print_to_file(&path)
-                            .expect("Error while dumping pre optimized LLVM IR");
-                    }
-                    fn postopt_ir(&self, kind: &CompiledKind, module: &InkwellModule) {
-                        let mut path = self.debug_dir.clone();
-                        path.push(format!("{}.postopt.ll", function_kind_to_filename(kind)));
-                        module
-                            .print_to_file(&path)
-                            .expect("Error while dumping post optimized LLVM IR");
-                    }
-                    fn obj_memory_buffer(
-                        &self,
-                        kind: &CompiledKind,
-                        memory_buffer: &InkwellMemoryBuffer,
-                    ) {
-                        let mut path = self.debug_dir.clone();
-                        path.push(format!("{}.o", function_kind_to_filename(kind)));
-                        let mem_buf_slice = memory_buffer.as_slice();
-                        let mut file = File::create(path)
-                            .expect("Error while creating debug object file from LLVM IR");
-                        let mut pos = 0;
-                        while pos < mem_buf_slice.len() {
-                            pos += file.write(&mem_buf_slice[pos..]).unwrap();
-                        }
-                    }
-                }
-
-                impl fmt::Debug for Callbacks {
-                    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                        write!(f, "LLVMCallbacks")
-                    }
-                }
-
-                if let Some(ref llvm_debug_dir) = self.llvm_debug_dir {
-                    config.callbacks(Some(Arc::new(Callbacks::new(llvm_debug_dir.clone())?)));
-                }
-                if self.enable_verifier {
-                    config.enable_verifier();
-                }
-                Box::new(config)
-            }
-            #[cfg(not(all(feature = "singlepass", feature = "cranelift", feature = "llvm",)))]
             compiler => {
                 bail!(
                     "The `{}` compiler is not included in this binary.",
@@ -324,7 +201,7 @@ impl CompilerOptions {
 /// The compiler used for the store
 #[derive(Debug, PartialEq, Eq)]
 pub enum CompilerType {
-    /// Singlepass compiler
+    /// Singlepass compiler. Retained for compatibility; unsupported in this fork.
     Singlepass,
     /// Cranelift compiler
     Cranelift,
@@ -338,12 +215,8 @@ impl CompilerType {
     /// Return all enabled compilers
     pub fn enabled() -> Vec<CompilerType> {
         vec![
-            #[cfg(feature = "singlepass")]
-            Self::Singlepass,
             #[cfg(feature = "cranelift")]
             Self::Cranelift,
-            #[cfg(feature = "llvm")]
-            Self::LLVM,
         ]
     }
 }

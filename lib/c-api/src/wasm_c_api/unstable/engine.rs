@@ -145,7 +145,7 @@ pub extern "C" fn wasmer_is_compiler_available(compiler: wasmer_compiler_t) -> b
     match compiler {
         wasmer_compiler_t::CRANELIFT if cfg!(feature = "cranelift") => true,
         wasmer_compiler_t::LLVM if cfg!(feature = "llvm") => true,
-        wasmer_compiler_t::SINGLEPASS if cfg!(feature = "singlepass") => true,
+        wasmer_compiler_t::SINGLEPASS => false,
         _ => false,
     }
 }
@@ -207,14 +207,7 @@ mod tests {
             },
         );
         set_var("LLVM", if cfg!(feature = "llvm") { "1" } else { "0" });
-        set_var(
-            "SINGLEPASS",
-            if cfg!(feature = "singlepass") {
-                "1"
-            } else {
-                "0"
-            },
-        );
+        set_var("SINGLEPASS", "0");
 
         (assert_c! {
             #include "tests/wasmer.h"

@@ -33,6 +33,7 @@ std = ["wasmer-types/std"]
 core = ["hashbrown", "wasmer-types/core"]
 enable-serde = ["serde", "serde_bytes", "wasmer-types/enable-serde"]
 enable-rkyv = ["rkyv", "wasmer-types/enable-rkyv"]
+cargo-clippy = []
 
 [badges]
 maintenance = { status = "experimental" }

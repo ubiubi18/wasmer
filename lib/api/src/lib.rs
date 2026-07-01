@@ -86,8 +86,6 @@
 //!
 //! * **Pluggable compilers** — A compiler is used by an engine to
 //!   transform WebAssembly into executable code:
-//!   * [`wasmer-compiler-singlepass`] provides a fast compilation-time
-//!     but an unoptimized runtime speed,
 //!   * [`wasmer-compiler-cranelift`] provides the right balance between
 //!     compilation-time and runtime performance, useful for development,
 //!   * [`wasmer-compiler-llvm`] provides a deeply optimized executable
@@ -313,10 +311,6 @@
 #![cfg_attr(feature = "llvm", doc = "(enabled),")]
 #![cfg_attr(not(feature = "llvm"), doc = "(disabled),")]
 //!   enables Wasmer's [LLVM compiler][wasmer-compiler-lvm],
-//! - `singlepass`
-#![cfg_attr(feature = "singlepass", doc = "(enabled),")]
-#![cfg_attr(not(feature = "singlepass"), doc = "(disabled),")]
-//!   enables Wasmer's [Singlepass compiler][wasmer-compiler-singlepass],
 //! - `wat`
 #![cfg_attr(feature = "wat", doc = "(enabled),")]
 #![cfg_attr(not(feature = "wat"), doc = "(disabled),")]
@@ -341,11 +335,6 @@
 #![cfg_attr(feature = "default-llvm", doc = "(enabled),")]
 #![cfg_attr(not(feature = "default-llvm"), doc = "(disabled),")]
 //!   set Wasmer's LLVM compiler as the default,
-//! - `default-singlepass`
-#![cfg_attr(feature = "default-singlepass", doc = "(enabled),")]
-#![cfg_attr(not(feature = "default-singlepass"), doc = "(disabled),")]
-//!   set Wasmer's Singlepass compiler as the default.
-//!
 //! The next set is the default engine set:
 //! - `default-universal`
 #![cfg_attr(feature = "default-universal", doc = "(enabled),")]
@@ -436,7 +425,6 @@
 //! [`wasmer-engine-universal`]: https://docs.rs/wasmer-engine-universal/
 //! [`wasmer-engine-dylib`]: https://docs.rs/wasmer-engine-dylib/
 //! [`wasmer-engine-staticlib`]: https://docs.rs/wasmer-engine-staticlib/
-//! [`wasmer-compiler-singlepass`]: https://docs.rs/wasmer-compiler-singlepass/
 //! [`wasmer-compiler-llvm`]: https://docs.rs/wasmer-compiler-llvm/
 //! [`wasmer-compiler-cranelift`]: https://docs.rs/wasmer-compiler-cranelift/
 //! [`wasmer-wasi`]: https://docs.rs/wasmer-wasi/

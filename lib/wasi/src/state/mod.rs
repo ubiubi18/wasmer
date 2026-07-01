@@ -186,8 +186,10 @@ pub(crate) fn default_fs_backing() -> Box<dyn wasmer_vfs::FileSystem> {
 }
 
 #[derive(Debug, Default)]
+#[allow(dead_code)]
 pub struct FallbackFileSystem;
 
+#[allow(dead_code)]
 impl FallbackFileSystem {
     fn fail() -> ! {
         panic!("No filesystem set for wasmer-wasi, please enable either the `host-fs` or `mem-fs` feature or set your custom filesystem with `WasiStateBuilder::set_fs`");

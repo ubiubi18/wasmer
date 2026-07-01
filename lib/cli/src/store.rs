@@ -23,26 +23,32 @@ pub struct StoreOptions {
     compiler: CompilerOptions,
 
     /// Use the Universal Engine.
+    #[allow(dead_code)]
     #[structopt(long, conflicts_with_all = &["dylib", "staticlib", "jit", "native", "object_file"])]
     universal: bool,
 
     /// Use the Dylib Engine.
+    #[allow(dead_code)]
     #[structopt(long, conflicts_with_all = &["universal", "staticlib", "jit", "native", "object_file"])]
     dylib: bool,
 
     /// Use the Staticlib Engine.
+    #[allow(dead_code)]
     #[structopt(long, conflicts_with_all = &["universal", "dylib", "jit", "native", "object_file"])]
     staticlib: bool,
 
     /// Use the JIT (Universal) Engine.
+    #[allow(dead_code)]
     #[structopt(long, hidden = true, conflicts_with_all = &["universal", "dylib", "staticlib", "native", "object_file"])]
     jit: bool,
 
     /// Use the Native (Dylib) Engine.
+    #[allow(dead_code)]
     #[structopt(long, hidden = true, conflicts_with_all = &["universal", "dylib", "staticlib", "jit", "object_file"])]
     native: bool,
 
     /// Use the ObjectFile (Staticlib) Engine.
+    #[allow(dead_code)]
     #[structopt(long, hidden = true, conflicts_with_all = &["universal", "dylib", "staticlib", "jit", "native"])]
     object_file: bool,
 }
@@ -51,7 +57,7 @@ pub struct StoreOptions {
 #[derive(Debug, Clone, StructOpt, Default)]
 /// The compiler options
 pub struct CompilerOptions {
-    /// Use Singlepass compiler.
+    /// Use Singlepass compiler. Retained as a compatibility flag; unsupported in this fork.
     #[structopt(long, conflicts_with_all = &["cranelift", "llvm"])]
     singlepass: bool,
 
@@ -79,20 +85,17 @@ pub struct CompilerOptions {
 #[cfg(feature = "compiler")]
 impl CompilerOptions {
     fn get_compiler(&self) -> Result<CompilerType> {
-        if self.cranelift {
+        if self.singlepass {
+            bail!("The `singlepass` compiler is not included in this fork.");
+        } else if self.cranelift {
             Ok(CompilerType::Cranelift)
         } else if self.llvm {
             Ok(CompilerType::LLVM)
-        } else if self.singlepass {
-            Ok(CompilerType::Singlepass)
         } else {
             // Auto mode, we choose the best compiler for that platform
             cfg_if::cfg_if! {
                 if #[cfg(all(feature = "cranelift", any(target_arch = "x86_64", target_arch = "aarch64")))] {
                     Ok(CompilerType::Cranelift)
-                }
-                else if #[cfg(all(feature = "singlepass", target_arch = "x86_64"))] {
-                    Ok(CompilerType::Singlepass)
                 }
                 else if #[cfg(feature = "llvm")] {
                     Ok(CompilerType::LLVM)
@@ -180,14 +183,6 @@ impl CompilerOptions {
         let compiler = self.get_compiler()?;
         let compiler_config: Box<dyn CompilerConfig> = match compiler {
             CompilerType::Headless => bail!("The headless engine can't be chosen"),
-            #[cfg(feature = "singlepass")]
-            CompilerType::Singlepass => {
-                let mut config = wasmer_compiler_singlepass::Singlepass::new();
-                if self.enable_verifier {
-                    config.enable_verifier();
-                }
-                Box::new(config)
-            }
             #[cfg(feature = "cranelift")]
             CompilerType::Cranelift => {
                 let mut config = wasmer_compiler_cranelift::Cranelift::new();
@@ -299,7 +294,6 @@ impl CompilerOptions {
                 }
                 Box::new(config)
             }
-            #[cfg(not(all(feature = "singlepass", feature = "cranelift", feature = "llvm",)))]
             compiler => {
                 bail!(
                     "The `{}` compiler is not included in this binary.",
@@ -316,7 +310,7 @@ impl CompilerOptions {
 /// The compiler used for the store
 #[derive(Debug, PartialEq, Eq)]
 pub enum CompilerType {
-    /// Singlepass compiler
+    /// Singlepass compiler. Retained for compatibility; unsupported in this fork.
     Singlepass,
     /// Cranelift compiler
     Cranelift,
@@ -330,8 +324,6 @@ impl CompilerType {
     /// Return all enabled compilers
     pub fn enabled() -> Vec<CompilerType> {
         vec![
-            #[cfg(feature = "singlepass")]
-            Self::Singlepass,
             #[cfg(feature = "cranelift")]
             Self::Cranelift,
             #[cfg(feature = "llvm")]

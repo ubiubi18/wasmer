@@ -89,7 +89,7 @@ where
         Box::into_raw(Box::new(env_ref.clone())) as _
     };
     let host_env_drop_fn = |ptr: *mut c_void| {
-        unsafe { Box::from_raw(ptr.cast::<Env>()) };
+        unsafe { drop(Box::from_raw(ptr.cast::<Env>())) };
     };
     let env = Box::into_raw(Box::new(env)) as _;
 
@@ -1304,7 +1304,7 @@ mod inner {
                     /// This is a function that wraps the real host
                     /// function. Its address will be used inside the
                     /// runtime.
-                    extern fn func_wrapper<$( $x, )* Rets, RetsAsResult, Func>( _: usize, $( $x: $x::Native, )* ) -> Rets::CStruct
+                    extern "C" fn func_wrapper<$( $x, )* Rets, RetsAsResult, Func>( _: usize, $( $x: $x::Native, )* ) -> Rets::CStruct
                     where
                         $( $x: FromToNativeWasmType, )*
                         Rets: WasmTypeList,
@@ -1348,7 +1348,7 @@ mod inner {
                     /// This is a function that wraps the real host
                     /// function. Its address will be used inside the
                     /// runtime.
-                    extern fn func_wrapper<$( $x, )* Rets, RetsAsResult, Env, Func>( env: &Env, $( $x: $x::Native, )* ) -> Rets::CStruct
+                    extern "C" fn func_wrapper<$( $x, )* Rets, RetsAsResult, Env, Func>( env: &Env, $( $x: $x::Native, )* ) -> Rets::CStruct
                     where
                         $( $x: FromToNativeWasmType, )*
                         Rets: WasmTypeList,
