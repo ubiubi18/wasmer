@@ -17,7 +17,7 @@ wasmer-types = { path = "../types", version = "=2.3.0", default-features = false
 hashbrown = { version = "0.11", optional = true }
 gimli = { version = "0.26", optional = true }
 more-asserts = "0.2"
-dynasm = "1.2.3"
+dynasm = { version = "1.2.3", path = "../../vendor/dynasm" }
 dynasmrt = { version = "1.2.3", path = "../../vendor/dynasmrt" }
 lazy_static = "1.4"
 byteorder = "1.3"

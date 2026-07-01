@@ -11,21 +11,40 @@
 
 [package]
 edition = "2018"
-name = "dynasmrt"
+name = "dynasm"
 version = "1.2.3"
 authors = ["Alexander Stocko <as@coder.gg>", "CensoredUsername <cens.username@gmail.com>"]
-description = "A simple runtime for assembling code at runtime. Combined with the plugin crate dynasm it can be used to write JIT compilers easily."
+description = "A plugin for assembling code at runtime. Combined with the runtime crate dynasmrt it can be used to write JIT compilers easily."
 documentation = "https://censoredusername.github.io/dynasm-rs/plugin/dynasm/index.html"
 readme = "../README.md"
 keywords = ["jit", "dynasm", "dynasmrt", "dynasm-rs", "assembler"]
 license = "MPL-2.0"
 repository = "https://github.com/CensoredUsername/dynasm-rs"
+
+[lib]
+name = "dynasm"
+proc-macro = true
+[dependencies.bitflags]
+version = "1"
+
 [dependencies.byteorder]
 version = "1"
 
-[dependencies.dynasm]
-version = "=1.2.3"
-path = "../dynasm"
+[dependencies.lazy_static]
+version = "1"
 
-[dependencies.memmap2]
-version = "0.9.11"
+[dependencies.proc-macro2]
+version = "1.0.26"
+
+[dependencies.quote]
+version = "1"
+
+[dependencies.syn]
+version = "1"
+features = ["full", "extra-traits"]
+
+[features]
+default = []
+dynasm_extract = []
+dynasm_opmap = []
+filelocal = []
