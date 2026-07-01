@@ -1,0 +1,60 @@
+name: Fork CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust:
+    name: Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-cursor0 libxkbcommon-dev libwayland-dev
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Check core API
+        run: cargo check -p wasmer --no-default-features --features cranelift,universal
+
+      - name: Check headless CLI
+        run: cargo check -p wasmer-cli --no-default-features --features headless-minimal,wasmer/sys
+
+      - name: Check C API
+        run: cargo check -p wasmer-c-api --no-default-features --features compiler,cranelift,universal
+
+      - name: Check cache benches
+        run: cargo check -p wasmer-cache --benches
+
+      - name: Check experimental IO devices
+        run: cargo check -p wasmer-wasi-experimental-io-devices
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Audit
+        run: cargo audit
