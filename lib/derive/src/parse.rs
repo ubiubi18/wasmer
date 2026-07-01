@@ -1,5 +1,4 @@
 use proc_macro2::Span;
-use proc_macro_error::abort;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -52,11 +51,13 @@ impl Parse for ExportOptions {
                     aliases.push(alias);
                 }
                 otherwise => {
-                    abort!(
-                        ident,
-                        "Unrecognized argument in export options: expected `name = \"string\"`, `optional = bool`, or `alias = \"string\"` found `{}`",
-                        otherwise
-                    );
+                    return Err(syn::Error::new(
+                        ident.span(),
+                        format!(
+                            "Unrecognized argument in export options: expected `name = \"string\"`, `optional = bool`, or `alias = \"string\"` found `{}`",
+                            otherwise
+                        ),
+                    ));
                 }
             }
 
@@ -124,11 +125,12 @@ impl Parse for WasmerAttrInner {
                     span,
                 }
             }
-            otherwise => abort!(
-                ident,
-                "Unexpected identifier `{}`. Expected `export`.",
-                otherwise
-            ),
+            otherwise => {
+                return Err(syn::Error::new(
+                    ident.span(),
+                    format!("Unexpected identifier `{}`. Expected `export`.", otherwise),
+                ));
+            }
         };
         Ok(WasmerAttrInner(out))
     }

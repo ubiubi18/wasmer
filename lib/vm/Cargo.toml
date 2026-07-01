@@ -30,7 +30,7 @@ region = { version = "3.0" }
 corosensei = { version = "0.1.2" }
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
-mach = "0.3.2"
+mach2 = "0.4.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winbase", "memoryapi", "errhandlingapi"] }

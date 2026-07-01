@@ -1,7 +1,6 @@
 extern crate proc_macro;
 
 use proc_macro2::TokenStream;
-use proc_macro_error::{abort, proc_macro_error, set_dummy};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{spanned::Spanned, *};
 
@@ -9,12 +8,17 @@ mod parse;
 
 use crate::parse::WasmerAttr;
 
-#[proc_macro_error]
 #[proc_macro_derive(WasmerEnv, attributes(wasmer))]
 pub fn derive_wasmer_env(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input: DeriveInput = syn::parse(input).unwrap();
-    let gen = impl_wasmer_env(&input);
-    gen.into()
+    let input: DeriveInput = match syn::parse(input) {
+        Ok(input) => input,
+        Err(err) => return err.to_compile_error().into(),
+    };
+
+    match impl_wasmer_env(&input) {
+        Ok(gen) => gen.into(),
+        Err(err) => err.to_compile_error().into(),
+    }
 }
 
 fn impl_wasmer_env_for_struct(
@@ -22,11 +26,11 @@ fn impl_wasmer_env_for_struct(
     data: &DataStruct,
     generics: &Generics,
     _attrs: &[Attribute],
-) -> TokenStream {
-    let (trait_methods, helper_methods) = derive_struct_fields(data);
+) -> syn::Result<TokenStream> {
+    let (trait_methods, helper_methods) = derive_struct_fields(data)?;
     let lifetimes_and_generics = generics.params.clone();
     let where_clause = generics.where_clause.clone();
-    quote! {
+    Ok(quote! {
         impl < #lifetimes_and_generics > ::wasmer::WasmerEnv for #name < #lifetimes_and_generics > #where_clause{
             #trait_methods
         }
@@ -35,25 +39,20 @@ fn impl_wasmer_env_for_struct(
         impl < #lifetimes_and_generics > #name < #lifetimes_and_generics > #where_clause {
             #helper_methods
         }
-    }
+    })
 }
 
-fn impl_wasmer_env(input: &DeriveInput) -> TokenStream {
+fn impl_wasmer_env(input: &DeriveInput) -> syn::Result<TokenStream> {
     let struct_name = &input.ident;
-
-    set_dummy(quote! {
-        impl ::wasmer::WasmerEnv for #struct_name {
-            fn init_with_instance(&mut self, instance: &::wasmer::Instance) -> ::core::result::Result<(), ::wasmer::HostEnvInitError> {
-                Ok(())
-            }
-        }
-    });
 
     match &input.data {
         Data::Struct(ds) => {
             impl_wasmer_env_for_struct(struct_name, ds, &input.generics, &input.attrs)
         }
-        _ => todo!(),
+        _ => Err(Error::new_spanned(
+            input,
+            "WasmerEnv can only be derived for structs",
+        )),
     }
     /*match input.data {
         Struct(ds /*DataStruct {
@@ -65,7 +64,7 @@ fn impl_wasmer_env(input: &DeriveInput) -> TokenStream {
     }*/
 }
 
-fn derive_struct_fields(data: &DataStruct) -> (TokenStream, TokenStream) {
+fn derive_struct_fields(data: &DataStruct) -> syn::Result<(TokenStream, TokenStream)> {
     let mut finish = vec![];
     let mut helpers = vec![];
     //let mut assign_tokens = vec![];
@@ -91,14 +90,17 @@ fn derive_struct_fields(data: &DataStruct) -> (TokenStream, TokenStream) {
                         break;
                     }
                     Err(e) => {
-                        abort!(attr, "Failed to parse `wasmer` attribute: {}", e);
+                        return Err(Error::new_spanned(
+                            attr,
+                            format!("Failed to parse `wasmer` attribute: {}", e),
+                        ));
                     }
                 }
             }
         }
 
         if let Some(wasmer_attr) = wasmer_attr {
-            let inner_type = get_identifier(top_level_ty);
+            let inner_type = get_identifier(top_level_ty)?;
             if let Some(name) = &name {
                 let name_ref_str = format!("{}_ref", name);
                 let name_ref = syn::Ident::new(&name_ref_str, name.span());
@@ -191,10 +193,10 @@ fn derive_struct_fields(data: &DataStruct) -> (TokenStream, TokenStream) {
                                 }
                             }
                         } else {
-                            abort!(
+                            return Err(Error::new(
                                 span,
                                 "Expected `name` field on export attribute because field does not have a name. For example: `#[wasmer(export(name = \"wasm_ident\"))]`.",
-                            );
+                            ));
                         }
                     };
 
@@ -215,11 +217,11 @@ fn derive_struct_fields(data: &DataStruct) -> (TokenStream, TokenStream) {
         #(#helpers)*
     };
 
-    (trait_methods, helper_methods)
+    Ok((trait_methods, helper_methods))
 }
 
 // TODO: name this something that makes sense
-fn get_identifier(ty: &Type) -> TokenStream {
+fn get_identifier(ty: &Type) -> syn::Result<TokenStream> {
     match ty {
         Type::Path(TypePath {
             path: Path { segments, .. },
@@ -227,39 +229,46 @@ fn get_identifier(ty: &Type) -> TokenStream {
         }) => {
             if let Some(PathSegment { ident, arguments }) = segments.last() {
                 if ident != "LazyInit" {
-                    abort!(
+                    return Err(Error::new_spanned(
                         ident,
-                        "WasmerEnv derive expects all `export`s to be wrapped in `LazyInit`"
-                    );
+                        "WasmerEnv derive expects all `export`s to be wrapped in `LazyInit`",
+                    ));
                 }
                 if let PathArguments::AngleBracketed(AngleBracketedGenericArguments {
                     args, ..
                 }) = arguments
                 {
-                    // TODO: proper error handling
-                    assert_eq!(args.len(), 1);
+                    if args.len() != 1 {
+                        return Err(Error::new_spanned(
+                            arguments,
+                            "Expected exactly one generic parameter on `LazyInit`",
+                        ));
+                    }
                     if let GenericArgument::Type(Type::Path(TypePath {
                         path: Path { segments, .. },
                         ..
                     })) = &args[0]
                     {
-                        segments
+                        Ok(segments
                             .last()
                             .expect("there must be at least one segment; TODO: error handling")
-                            .to_token_stream()
+                            .to_token_stream())
                     } else {
-                        abort!(
+                        Err(Error::new_spanned(
                             &args[0],
-                            "unrecognized type in first generic position on `LazyInit`"
-                        );
+                            "unrecognized type in first generic position on `LazyInit`",
+                        ))
                     }
                 } else {
-                    abort!(arguments, "Expected a generic parameter on `LazyInit`");
+                    Err(Error::new_spanned(
+                        arguments,
+                        "Expected a generic parameter on `LazyInit`",
+                    ))
                 }
             } else {
-                abort!(segments, "Unknown type found");
+                Err(Error::new_spanned(segments, "Unknown type found"))
             }
         }
-        _ => abort!(ty, "Unrecognized/unsupported type"),
+        _ => Err(Error::new_spanned(ty, "Unrecognized/unsupported type")),
     }
 }
