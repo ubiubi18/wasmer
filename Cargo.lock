@@ -3184,7 +3184,6 @@ name = "wasmer-cli"
 version = "2.3.0"
 dependencies = [
  "anyhow",
- "atty",
  "bytesize",
  "cfg-if",
  "colored 2.2.0",
@@ -3234,7 +3233,6 @@ name = "wasmer-compiler-cli"
 version = "2.3.0"
 dependencies = [
  "anyhow",
- "atty",
  "bytesize",
  "cfg-if",
  "colored 2.2.0",
