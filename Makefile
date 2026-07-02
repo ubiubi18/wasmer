@@ -103,7 +103,7 @@ CARGO_TARGET ?=
 
 # Variables that can be overriden by the users to force to enable or
 # to disable a specific compiler.
-ENABLE_CRANELIFT ?=
+ENABLE_CRANELIFT ?= 0
 ENABLE_LLVM ?=
 ENABLE_SINGLEPASS ?=
 
@@ -114,12 +114,12 @@ compilers :=
 # Cranelift
 ##
 
-# If the user didn't disable the Cranelift compiler…
+# The Cranelift backend is pruned from this fork; keep feature selection aligned
+# with the remaining manifests.
 ifneq ($(ENABLE_CRANELIFT), 0)
-	# … then it can always be enabled.
-	compilers += cranelift
-	ENABLE_CRANELIFT := 1
+        $(warning Cranelift backend is pruned in this fork; ignoring ENABLE_CRANELIFT=$(ENABLE_CRANELIFT))
 endif
+ENABLE_CRANELIFT := 0
 
 ##
 # LLVM

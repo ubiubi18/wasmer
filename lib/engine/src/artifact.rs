@@ -1,7 +1,6 @@
 use crate::{resolve_imports, InstantiationError, Resolver, RuntimeError, Tunables};
 use loupe::MemoryUsage;
 use std::any::Any;
-pub use wasmer_artifact::MetadataHeader;
 use wasmer_artifact::{ArtifactCreate, Upcastable};
 use wasmer_compiler::CpuFeature;
 use wasmer_types::entity::BoxedSlice;

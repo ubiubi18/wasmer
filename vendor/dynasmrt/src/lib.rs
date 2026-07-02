@@ -491,7 +491,7 @@ impl<R: Relocation> VecAssembler<R> {
         }
 
         // Check that there are no unknown local labels
-        for (_, name) in self.relocs.take_locals() {
+        if let Some((_, name)) = self.relocs.take_locals().next() {
             return Err(DynasmError::UnknownLabel(LabelKind::Local(name)));
         }
 
@@ -834,7 +834,7 @@ impl<R: Relocation> Assembler<R> {
         }
 
         // Check that there are no unknown local labels
-        for (_, name) in self.relocs.take_locals() {
+        if let Some((_, name)) = self.relocs.take_locals().next() {
             return Err(DynasmError::UnknownLabel(LabelKind::Local(name)));
         }
 
@@ -1075,7 +1075,7 @@ impl<'a, R: Relocation> Modifier<'a, R> {
         }
 
         // Check for unknown locals
-        for (_, name) in self.relocs.take_locals() {
+        if let Some((_, name)) = self.relocs.take_locals().next() {
             return Err(DynasmError::UnknownLabel(LabelKind::Local(name)));
         }
 

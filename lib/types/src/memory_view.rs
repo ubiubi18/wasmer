@@ -47,7 +47,7 @@ pub struct NonAtomically;
 impl Atomicity for NonAtomically {}
 
 /// A view into a memory.
-pub struct MemoryView<'a, T: 'a, A = NonAtomically> {
+pub struct MemoryView<'a, T: 'a, A: Atomicity = NonAtomically> {
     ptr: *mut T,
     // Note: the length is in the terms of `size::<T>()`.
     // The total length in memory is `size::<T>() * length`.

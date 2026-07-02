@@ -122,6 +122,7 @@ pub unsafe fn copy_cstr_into_wasm(ctx: &EmEnv, cstr: *const c_char) -> u32 {
     space_offset
 }
 
+#[allow(clippy::mut_from_ref)]
 pub unsafe fn allocate_on_stack<'a, T: Copy>(ctx: &'a EmEnv, count: u32) -> (u32, &'a mut [T]) {
     let offset = get_emscripten_data(ctx)
         .stack_alloc_ref()

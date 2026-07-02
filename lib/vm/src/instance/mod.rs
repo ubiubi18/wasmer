@@ -11,7 +11,9 @@ mod allocator;
 mod r#ref;
 
 pub use allocator::InstanceAllocator;
-pub use r#ref::{InstanceRef, WeakInstanceRef, WeakOrStrongInstanceRef};
+#[allow(unused_imports)]
+pub use r#ref::WeakInstanceRef;
+pub use r#ref::{InstanceRef, WeakOrStrongInstanceRef};
 
 use crate::export::VMExtern;
 use crate::func_data_registry::VMFuncRef;
