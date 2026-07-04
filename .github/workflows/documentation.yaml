@@ -12,15 +12,13 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Set up dependencies
         run: |
           sudo apt-get update -y
           sudo apt-get install -y libxkbcommon-dev
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Install LLVM
         shell: bash
         run: |

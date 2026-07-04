@@ -2,6 +2,8 @@ name: Builds
 
 env:
   RUST_BACKTRACE: 1
+  CARGO_SCCACHE_VERSION: 0.16.0
+  XARGO_VERSION: 0.3.26
 
 on:
   push:
@@ -27,9 +29,9 @@ jobs:
         shell: bash
         run: |
           VERSION=${GITHUB_REF/refs\/tags\//}
-          echo ::set-output name=VERSION::${VERSION}
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
           DOING_RELEASE=$(echo $VERSION | grep -c '^[0-9]\+\.[0-9]\+\.[0-9]\+\(-\([a-zA-Z]\+\)\?[0-9]*\)\?$' || true)
-          echo ::set-output name=DOING_RELEASE::${DOING_RELEASE}
+          echo "DOING_RELEASE=${DOING_RELEASE}" >> "$GITHUB_OUTPUT"
           echo $VERSION
           echo $DOING_RELEASE
 
@@ -80,7 +82,7 @@ jobs:
       SCCACHE_AZURE_CONNECTION_STRING: ${{ secrets.SCCACHE_AZURE_CONNECTION_STRING }}
       TARGET: ${{ matrix.target }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Set up libstdc++ on Linux
         if: matrix.build == 'linux-x64'
         run: |
@@ -96,12 +98,15 @@ jobs:
         if: matrix.build == 'linux-musl-x64'
         run: |
             apk add build-base bash musl-dev curl make libtool libffi-dev gcc automake autoconf git openssl-dev g++ libxkbcommon-dev wayland-dev
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust with target
+        if: ${{ matrix.target }}
+        uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.target }}
-          override: true
-      - uses: Swatinem/rust-cache@v1
+          targets: ${{ matrix.target }}
+      - name: Install Rust
+        if: ${{ !matrix.target }}
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         if: matrix.use_sccache != true
       - name: Install LLVM (Choco - Windows)
         if: matrix.llvm_choco_version
@@ -134,13 +139,13 @@ jobs:
           brew install gnu-tar
           echo PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> $GITHUB_ENV
         if: matrix.os == 'macos-latest' || matrix.os == 'macos-11.0'
-      - uses: actions/cache@v2
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ matrix.build }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}-v1
-      - uses: actions/cache@v2
+      - uses: actions/cache@v6
         if: matrix.use_sccache
         with:
           path: ${{ runner.tool_cache }}/cargo-sccache
@@ -149,7 +154,7 @@ jobs:
         if: matrix.use_sccache
         run: |
           if [ ! -f '${{ runner.tool_cache }}/cargo-sccache/bin/sccache' ]; then
-            cargo install sccache --no-default-features --features=dist-client,azure --root '${{ runner.tool_cache }}/cargo-sccache'
+            cargo install sccache --version ${{ env.CARGO_SCCACHE_VERSION }} --locked --no-default-features --features=dist-client,azure --root '${{ runner.tool_cache }}/cargo-sccache'
           fi
         shell: bash
       - name: Setup Rust target
@@ -204,17 +209,23 @@ jobs:
       - name: Build Wapm binary
         run: |
           make build-wapm
-      - name: Install Nightly Rust for Headless
-        uses: actions-rs/toolchain@v1
+      - name: Install Nightly Rust for Headless with target
+        if: ${{ matrix.target }}
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 'nightly-2022-02-08'
-          target: ${{ matrix.target }}
-          override: true
+          targets: ${{ matrix.target }}
+          components: "rust-src"
+      - name: Install Nightly Rust for Headless
+        if: ${{ !matrix.target }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 'nightly-2022-02-08'
           components: "rust-src"
       - name: Build Minimal Wasmer Headless
         if: matrix.build != 'linux-musl-x64'
         run: |
-          cargo install xargo
+          cargo install xargo --version ${{ env.XARGO_VERSION }} --locked
           echo "" >> Cargo.toml
           echo "[profile.release]" >> Cargo.toml
           echo "opt-level = 'z'" >> Cargo.toml
@@ -239,7 +250,7 @@ jobs:
           TARGET: aarch64-apple-darwin
           TARGET_DIR: target/aarch64-apple-darwin/release
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
           path: dist
@@ -250,12 +261,10 @@ jobs:
     name: Linux aarch64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
-          override: true
+          targets: aarch64-unknown-linux-gnu
       - name: Build cross image
         run: |
           docker build -t wasmer/aarch64 /home/runner/work/wasmer/wasmer/.github/cross-linux-aarch64/
@@ -304,7 +313,7 @@ jobs:
           TARGET: aarch64-unknown-linux-gnu
           TARGET_DIR: target/aarch64-unknown-linux-gnu/release
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v7
         with:
           name: wasmer-linux-aarch64
           path: dist
@@ -317,80 +326,27 @@ jobs:
     if: needs.setup.outputs.DOING_RELEASE == '1' || github.event.inputs.release != ''
     steps:
       - name: Download the Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Prepare Release Assets
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          cp artifacts/wasmer-windows-amd64/WasmerInstaller.exe release-assets/wasmer-windows.exe
+          cp artifacts/wasmer-windows-amd64/wasmer.tar.gz release-assets/wasmer-windows-amd64.tar.gz
+          cp artifacts/wasmer-linux-amd64/wasmer.tar.gz release-assets/wasmer-linux-amd64.tar.gz
+          cp artifacts/wasmer-linux-aarch64/wasmer.tar.gz release-assets/wasmer-linux-aarch64.tar.gz
+          cp artifacts/wasmer-linux-musl-amd64/wasmer.tar.gz release-assets/wasmer-linux-musl-amd64.tar.gz
+          cp artifacts/wasmer-darwin-amd64/wasmer.tar.gz release-assets/wasmer-darwin-amd64.tar.gz
+          cp artifacts/wasmer-darwin-arm64/wasmer.tar.gz release-assets/wasmer-darwin-arm64.tar.gz
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ needs.setup.outputs.VERSION }}
-          release_name: Release ${{ needs.setup.outputs.VERSION }}
+          name: Release ${{ needs.setup.outputs.VERSION }}
           draft: true
           prerelease: false
-      - name: Upload Release Asset Windows Installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-windows-amd64/WasmerInstaller.exe
-          asset_name: wasmer-windows.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
-      - name: Upload Release Asset Windows
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-windows-amd64/wasmer.tar.gz
-          asset_name: wasmer-windows-amd64.tar.gz
-          asset_content_type: application/gzip
-      - name: Upload Release Asset Linux amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-linux-amd64/wasmer.tar.gz
-          asset_name: wasmer-linux-amd64.tar.gz
-          asset_content_type: application/gzip
-      - name: Upload Release Asset Linux aarch64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-linux-aarch64/wasmer.tar.gz
-          asset_name: wasmer-linux-aarch64.tar.gz
-          asset_content_type: application/gzip
-      - name: Upload Release Asset Linux amd64 (musl)
-        id: upload-release-asset-linux-musl-amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-linux-musl-amd64/wasmer.tar.gz
-          asset_name: wasmer-linux-musl-amd64.tar.gz
-          asset_content_type: application/gzip
-      - name: Upload Release Asset Mac amd64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-darwin-amd64/wasmer.tar.gz
-          asset_name: wasmer-darwin-amd64.tar.gz
-          asset_content_type: application/gzip
-      - name: Upload Release Asset Mac arm64
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: artifacts/wasmer-darwin-arm64/wasmer.tar.gz
-          asset_name: wasmer-darwin-arm64.tar.gz
-          asset_content_type: application/gzip
+          files: release-assets/*

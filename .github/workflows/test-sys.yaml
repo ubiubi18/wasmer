@@ -2,6 +2,7 @@ name: Runtime tests
 
 env:
   RUST_BACKTRACE: 1
+  CARGO_SCCACHE_VERSION: 0.16.0
 
 on:
   workflow_dispatch:
@@ -32,9 +33,9 @@ jobs:
         shell: bash
         run: |
           VERSION=${GITHUB_REF/refs\/tags\//}
-          echo ::set-output name=VERSION::${VERSION}
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
           DOING_RELEASE=$(echo $VERSION | grep -c '^[0-9]\+\.[0-9]\+\.[0-9]\+\(-\([a-zA-Z]\+\)\?[0-9]*\)\?$' || true)
-          echo ::set-output name=DOING_RELEASE::${DOING_RELEASE}
+          echo "DOING_RELEASE=${DOING_RELEASE}" >> "$GITHUB_OUTPUT"
           echo $VERSION
           echo $DOING_RELEASE
 
@@ -91,7 +92,7 @@ jobs:
       SCCACHE_AZURE_BLOB_CONTAINER: wasmerstoragesccacheblob
       SCCACHE_AZURE_CONNECTION_STRING: ${{ secrets.SCCACHE_AZURE_CONNECTION_STRING }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Set up libstdc++ on Linux
         if: matrix.build == 'linux-x64'
         run: |
@@ -107,12 +108,15 @@ jobs:
         if: matrix.build == 'linux-musl-x64'
         run: |
             apk add build-base bash musl-dev curl make libtool libffi-dev gcc automake autoconf git openssl-dev g++ libxkbcommon-dev wayland-dev
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust with target
+        if: ${{ matrix.target }}
+        uses: dtolnay/rust-toolchain@stable
         with:
-          target: ${{ matrix.target }}
-          override: true
-      - uses: Swatinem/rust-cache@v1
+          targets: ${{ matrix.target }}
+      - name: Install Rust
+        if: ${{ !matrix.target }}
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         if: matrix.use_sccache != true
       - name: Install LLVM (Choco - Windows)
         if: matrix.llvm_choco_version
@@ -145,13 +149,13 @@ jobs:
           brew install gnu-tar
           echo PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> $GITHUB_ENV
         if: matrix.os == 'macos-latest' || matrix.os == 'macos-11.0'
-      - uses: actions/cache@v2
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ matrix.build }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}-v1
-      - uses: actions/cache@v2
+      - uses: actions/cache@v6
         if: matrix.use_sccache
         with:
           path: ${{ runner.tool_cache }}/cargo-sccache
@@ -160,7 +164,7 @@ jobs:
         if: matrix.use_sccache
         run: |
           if [ ! -f '${{ runner.tool_cache }}/cargo-sccache/bin/sccache' ]; then
-            cargo install sccache --no-default-features --features=dist-client,azure --root '${{ runner.tool_cache }}/cargo-sccache'
+            cargo install sccache --version ${{ env.CARGO_SCCACHE_VERSION }} --locked --no-default-features --features=dist-client,azure --root '${{ runner.tool_cache }}/cargo-sccache'
           fi
         shell: bash
       - name: Setup Rust target
@@ -227,16 +231,16 @@ jobs:
   audit:
     name: Audit
     env:
-      CARGO_AUDIT_VERSION: 0.16.0
+      CARGO_AUDIT_VERSION: 0.22.2
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/cache@master
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
         with:
           path: ${{ runner.tool_cache }}/cargo-audit
           key: cargo-audit-bin-${{ env.CARGO_AUDIT_VERSION }}
       - run: |
           echo "'${{ runner.tool_cache }}/cargo-audit/bin'" >> $GITHUB_PATH
       - run: |
-          cargo install cargo-audit --version ${{ env.CARGO_AUDIT_VERSION }} --root '${{ runner.tool_cache }}/cargo-audit'
+          cargo install cargo-audit --version ${{ env.CARGO_AUDIT_VERSION }} --locked --root '${{ runner.tool_cache }}/cargo-audit'
           cargo audit

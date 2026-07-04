@@ -11,18 +11,16 @@ name: Coverage
 env:
   RUST_BACKTRACE: 1
   RUSTFLAGS: "-Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off"
+  CARGO_TARPAULIN_VERSION: 0.37.0
 
 jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Install LLVM (Linux)
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz -L -o llvm.tar.xz
@@ -32,10 +30,10 @@ jobs:
           echo 'LLVM_SYS_100_PREFIX=/opt/llvm-10' >> $GITHUB_ENV
       - name: Generate Coverage Report
         run: |
-          cargo install cargo-tarpaulin
+          cargo install cargo-tarpaulin --version ${{ env.CARGO_TARPAULIN_VERSION }} --locked
           cargo tarpaulin --forward --release -t120 --out Xml --ignore-tests --workspace --exclude wasmer-c-api -- --skip traps:: --skip spec::linking --test-threads=1
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./cobertura.xml

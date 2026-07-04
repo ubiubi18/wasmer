@@ -20,12 +20,9 @@ jobs:
       SCCACHE_AZURE_BLOB_CONTAINER: wasmerstoragesccacheblob
       SCCACHE_AZURE_CONNECTION_STRING: ${{ secrets.SCCACHE_AZURE_CONNECTION_STRING }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Configure cargo data directory
         # After this point, all cargo registry and crate data is stored in
         # $GITHUB_WORKSPACE/.cargo_home. This allows us to cache only the files
@@ -34,7 +31,7 @@ jobs:
         # the workspace dir to be saved/restored incorrectly.
         run: echo "CARGO_HOME=$(pwd)/.cargo_home" >> $GITHUB_ENV
       - name: Cache
-        uses: actions/cache@master
+        uses: actions/cache@v6
         with:
           # Note: crates from the git repo always get rebuilt
           # so we cache only those subdirectories of target/{debug|release} that
@@ -54,11 +51,11 @@ jobs:
           mkdir -p /opt/llvm-10
           tar xf llvm.tar.xz --strip-components=1 -C /opt/llvm-10
           echo '/opt/llvm-10/bin' >> $GITHUB_PATH
-          echo 'name=LLVM_SYS_100_PREFIX=/opt/llvm-10' >> $GITHUB_ENV
+          echo 'LLVM_SYS_100_PREFIX=/opt/llvm-10' >> $GITHUB_ENV
       - name: Install Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
-          python-version: 3.8
+          python-version: '3.13'
       - name: Install Python dependencies
         run: |
           pip install codespeed-client
@@ -69,4 +66,3 @@ jobs:
           git clone https://github.com/wasmerio/wasmer-bench
 
           python3 wasmer-bench/send_metrics.py
-

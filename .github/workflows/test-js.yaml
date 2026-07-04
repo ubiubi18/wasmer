@@ -28,22 +28,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install NodeJS
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v6
         with:
-          node-version: 16
+          node-version: 24.18.0
 
       - name: Install wasm-pack
         run: |
-          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          cargo install wasm-pack --version 0.15.0 --locked
 
       - name: Compile Wasmer to WebAssembly and test with a JavaScript host
         run: make test-js

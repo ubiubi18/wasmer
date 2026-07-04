@@ -22,7 +22,7 @@ jobs:
     name: Rust checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -54,7 +54,7 @@ jobs:
         run: cargo check -p wasmer-cache --benches
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: cargo install cargo-audit --version 0.22.2 --locked
 
       - name: Audit
         run: cargo audit

@@ -11,12 +11,10 @@ jobs:
     name: Code lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          override: true
           components: rustfmt, clippy
       - name: Install LLVM (Linux)
         run: |
