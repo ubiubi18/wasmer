@@ -53,6 +53,9 @@ jobs:
       - name: Check cache benches
         run: cargo check -p wasmer-cache --benches
 
+      - name: Link VM tests
+        run: cargo test -p wasmer-vm --lib
+
       - name: Install cargo-audit
         run: cargo install cargo-audit --version 0.22.2 --locked
 

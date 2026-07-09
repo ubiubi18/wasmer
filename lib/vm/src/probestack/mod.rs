@@ -14,6 +14,11 @@
 //!
 //! [The Stack Clash]: https://blog.qualys.com/securitylabs/2017/06/19/the-stack-clash
 
+// Based on `compiler-builtins` with platform cfg adjustments:
+// https://github.com/rust-lang/compiler-builtins/blob/319637f544d9dda8fc3dd482d9979e0da135a258/compiler-builtins/src/probestack.rs
+#[cfg(missing_rust_probestack)]
+mod compiler_builtins;
+
 // A declaration for the stack probe function in Rust's standard library, for
 // catching callstack overflow.
 cfg_if::cfg_if! {
@@ -42,10 +47,10 @@ cfg_if::cfg_if! {
             // ___chkstk (note the triple underscore) is implemented in compiler-builtins/src/x86_64.rs
             // by the Rust compiler for the MinGW target
             #[cfg(all(target_os = "windows", target_env = "gnu"))]
-            pub fn ___chkstk();
+            pub fn ___chkstk_ms();
         }
         /// The probestack for Windows when compiled with GNU
-        pub const PROBESTACK: unsafe extern "C" fn() = ___chkstk;
+        pub const PROBESTACK: unsafe extern "C" fn() = ___chkstk_ms;
     } else if #[cfg(not(any(target_arch = "x86_64", target_arch = "x86")))] {
         // As per
         // https://github.com/rust-lang/compiler-builtins/blob/cae3e6ea23739166504f9f9fb50ec070097979d4/src/probestack.rs#L39,
@@ -55,10 +60,17 @@ cfg_if::cfg_if! {
         /// A default probestack for other architectures
         pub const PROBESTACK: unsafe extern "C" fn() = empty_probestack;
     } else {
-        extern "C" {
-            pub fn __rust_probestack();
+        cfg_if::cfg_if! {
+            if #[cfg(not(missing_rust_probestack))] {
+                extern "C" {
+                    pub fn __rust_probestack();
+                }
+                /// The probestack based on the Rust probestack
+                pub static PROBESTACK: unsafe extern "C" fn() = __rust_probestack;
+            } else if #[cfg(missing_rust_probestack)] {
+                /// The probestack based on the vendored compiler-builtins implementation
+                pub static PROBESTACK: unsafe extern "C" fn() = compiler_builtins::__rust_probestack;
+            }
         }
-        /// The probestack based on the Rust probestack
-        pub static PROBESTACK: unsafe extern "C" fn() = __rust_probestack;
     }
 }
