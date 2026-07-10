@@ -27,7 +27,7 @@ pub enum VMExtern {
 }
 
 /// A function export value.
-#[derive(Clone, Debug, PartialEq, MemoryUsage)]
+#[derive(Clone, Debug, MemoryUsage)]
 pub struct VMFunction {
     /// The address of the native-code function.
     pub address: *const VMFunctionBody,
@@ -55,6 +55,25 @@ pub struct VMFunction {
     pub instance_ref: Option<WeakOrStrongInstanceRef>,
 }
 
+impl PartialEq for VMFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+            && self.vmctx == other.vmctx
+            && self.signature == other.signature
+            && self.kind == other.kind
+            && trampolines_equal(self.call_trampoline, other.call_trampoline)
+            && self.instance_ref == other.instance_ref
+    }
+}
+
+fn trampolines_equal(left: Option<VMTrampoline>, right: Option<VMTrampoline>) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => std::ptr::fn_addr_eq(left, right),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
 impl VMFunction {
     /// Converts the stored instance ref into a strong `InstanceRef` if it is weak.
     /// Returns None if it cannot be upgraded.
@@ -63,6 +82,26 @@ impl VMFunction {
             *ir = ir.upgrade()?;
         }
         Some(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::vmcontext::VMContext;
+
+    unsafe extern "C" fn trampoline(
+        _vmctx: *mut VMContext,
+        _body: *const VMFunctionBody,
+        _values: *mut u128,
+    ) {
+    }
+
+    #[test]
+    fn trampoline_equality_uses_function_addresses() {
+        assert!(trampolines_equal(Some(trampoline), Some(trampoline)));
+        assert!(trampolines_equal(None, None));
+        assert!(!trampolines_equal(Some(trampoline), None));
     }
 }
 

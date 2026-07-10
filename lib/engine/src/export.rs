@@ -51,7 +51,7 @@ impl From<VMExtern> for Export {
 ///
 /// This struct owns the original `host_env`, thus when it gets dropped
 /// it calls the `drop` function on it.
-#[derive(Debug, PartialEq, MemoryUsage)]
+#[derive(Debug, MemoryUsage)]
 pub struct ExportFunctionMetadata {
     /// This field is stored here to be accessible by `Drop`.
     ///
@@ -87,6 +87,24 @@ pub struct ExportFunctionMetadata {
     /// For example, in the `Drop` implementation of this type.
     #[loupe(skip)]
     pub(crate) host_env_drop_fn: unsafe fn(*mut std::ffi::c_void),
+}
+
+impl PartialEq for ExportFunctionMetadata {
+    fn eq(&self, other: &Self) -> bool {
+        let init_functions_equal = match (
+            self.import_init_function_ptr,
+            other.import_init_function_ptr,
+        ) {
+            (Some(left), Some(right)) => std::ptr::fn_addr_eq(left, right),
+            (None, None) => true,
+            _ => false,
+        };
+
+        self.host_env == other.host_env
+            && init_functions_equal
+            && std::ptr::fn_addr_eq(self.host_env_clone_fn, other.host_env_clone_fn)
+            && std::ptr::fn_addr_eq(self.host_env_drop_fn, other.host_env_drop_fn)
+    }
 }
 
 /// This can be `Send` because `host_env` comes from `WasmerEnv` which is

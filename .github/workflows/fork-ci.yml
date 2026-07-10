@@ -39,6 +39,8 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Check core API
+        env:
+          RUSTFLAGS: -Dunpredictable-function-pointer-comparisons -Dstatic-mut-refs -Dfunction-casts-as-integer
         run: cargo check -p wasmer --no-default-features --features compiler,universal,singlepass
 
       - name: Check headless CLI

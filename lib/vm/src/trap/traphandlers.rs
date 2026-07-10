@@ -108,7 +108,7 @@ cfg_if::cfg_if! {
         static mut PREV_SIGFPE: MaybeUninit<libc::sigaction> = MaybeUninit::uninit();
 
         unsafe fn platform_init() {
-            let register = |slot: &mut MaybeUninit<libc::sigaction>, signal: i32| {
+            let register = |slot: *mut MaybeUninit<libc::sigaction>, signal: i32| {
                 let mut handler: libc::sigaction = mem::zeroed();
                 // The flags here are relatively careful, and they are...
                 //
@@ -124,9 +124,9 @@ cfg_if::cfg_if! {
                 // crash while handling the signal, and fall through to the
                 // Breakpad handler by testing handlingSegFault.
                 handler.sa_flags = libc::SA_SIGINFO | libc::SA_NODEFER | libc::SA_ONSTACK;
-                handler.sa_sigaction = trap_handler as usize;
+                handler.sa_sigaction = trap_handler as *const () as usize;
                 libc::sigemptyset(&mut handler.sa_mask);
-                if libc::sigaction(signal, &handler, slot.as_mut_ptr()) != 0 {
+                if libc::sigaction(signal, &handler, (*slot).as_mut_ptr()) != 0 {
                     panic!(
                         "unable to install signal handler: {}",
                         io::Error::last_os_error(),
@@ -135,20 +135,20 @@ cfg_if::cfg_if! {
             };
 
             // Allow handling OOB with signals on all architectures
-            register(&mut PREV_SIGSEGV, libc::SIGSEGV);
+            register(ptr::addr_of_mut!(PREV_SIGSEGV), libc::SIGSEGV);
 
             // Handle `unreachable` instructions which execute `ud2` right now
-            register(&mut PREV_SIGILL, libc::SIGILL);
+            register(ptr::addr_of_mut!(PREV_SIGILL), libc::SIGILL);
 
             // x86 uses SIGFPE to report division by zero
             if cfg!(target_arch = "x86") || cfg!(target_arch = "x86_64") {
-                register(&mut PREV_SIGFPE, libc::SIGFPE);
+                register(ptr::addr_of_mut!(PREV_SIGFPE), libc::SIGFPE);
             }
 
             // On ARM, handle Unaligned Accesses.
             // On Darwin, guard page accesses are raised as SIGBUS.
             if cfg!(target_arch = "arm") || cfg!(target_vendor = "apple") {
-                register(&mut PREV_SIGBUS, libc::SIGBUS);
+                register(ptr::addr_of_mut!(PREV_SIGBUS), libc::SIGBUS);
             }
 
             // This is necessary to support debugging under LLDB on Darwin.
@@ -195,10 +195,10 @@ cfg_if::cfg_if! {
             context: *mut libc::c_void,
         ) {
             let previous = match signum {
-                libc::SIGSEGV => &PREV_SIGSEGV,
-                libc::SIGBUS => &PREV_SIGBUS,
-                libc::SIGFPE => &PREV_SIGFPE,
-                libc::SIGILL => &PREV_SIGILL,
+                libc::SIGSEGV => ptr::addr_of!(PREV_SIGSEGV),
+                libc::SIGBUS => ptr::addr_of!(PREV_SIGBUS),
+                libc::SIGFPE => ptr::addr_of!(PREV_SIGFPE),
+                libc::SIGILL => ptr::addr_of!(PREV_SIGILL),
                 _ => panic!("unknown signal: {}", signum),
             };
             // We try to get the fault address associated to this signal
@@ -240,7 +240,7 @@ cfg_if::cfg_if! {
             // it. It will either crash synchronously, fix up the instruction
             // so that execution can continue and return, or trigger a crash by
             // returning the signal to it's original disposition and returning.
-            let previous = &*previous.as_ptr();
+            let previous = &*(*previous).as_ptr();
             if previous.sa_flags & libc::SA_SIGINFO != 0 {
                 mem::transmute::<
                     usize,
