@@ -21,6 +21,72 @@
 
 <br />
 
+## Idena compatibility fork
+
+> This repository is a hardened compatibility fork of Wasmer `2.3.0` for the
+> Idena smart-contract runtime. It is not the current general-purpose Wasmer
+> release, and this fork publishes no CLI packages or binaries. The installation
+> commands later in this README install official Wasmer, not this code.
+
+`idena-wasm` pins a reviewed commit from this repository and enables only the
+compiler, universal engine, Singlepass, middleware, and type surfaces required
+for Idena contract execution. Do not replace that pin with this repository's
+moving default branch.
+
+### What was updated
+
+- Cranelift, stale optional engines, advisory-bearing optional packages, and
+  unused workspace members were removed from the Idena build path.
+- WASI sandbox boundaries, C/Go FFI pointer validation, VM function-pointer
+  handling, signal state, allocation limits, and modern-Rust compatibility were
+  hardened.
+- Compatible Rust dependencies and workflow actions were refreshed without
+  changing the public Wasmer 2.3 crate version used by Idena.
+- Fork CI checks the core API, Singlepass compiler, universal engine, C API,
+  headless CLI, VM tests, formatting, warnings relevant to unsafe legacy
+  patterns, and `cargo audit`.
+
+### Benefits
+
+- A much smaller legacy runtime surface than building all Wasmer 2.3 engines
+  and integrations.
+- Backported security and correctness fixes while retaining the API expected by
+  the existing Idena Wasm wrapper.
+- Current compiler diagnostics expose unsafe assumptions that older Rust
+  toolchains did not report.
+
+### Risks and tradeoffs
+
+- This is still a legacy Wasmer 2.3 architecture. It does not automatically
+  receive fixes from current Wasmer releases, and backports can be incomplete.
+- Runtime changes are consensus-sensitive when consumed by Idena. A different
+  engine, compiler, metering path, trap, or floating-point result can split
+  contract execution between nodes.
+- The repository default branch can advance beyond the revision used by
+  `idena-wasm`. Only the exact commit in `idena-wasm/Cargo.toml` is part of the
+  reviewed runtime set.
+- The focused Idena checks pass on current Rust, but legacy crates still emit
+  non-fatal lifetime-syntax and unused-import warnings. The entire historical
+  workspace is not clean under a global `-D warnings` policy.
+- Reduced features improve auditability but make this fork unsuitable as a
+  drop-in replacement for applications that require LLVM, Cranelift, full
+  Emscripten/WASI support, or the latest WebAssembly proposals.
+
+### Validate the Idena subset
+
+Use the same Rust toolchain as the consuming `idena-wasm` revision, then run the
+commands maintained in `.github/workflows/fork-ci.yml`. At minimum:
+
+```bash
+cargo fmt --all -- --check
+cargo check -p wasmer --no-default-features --features compiler,universal,singlepass
+cargo test -p wasmer-vm --lib
+cargo audit
+```
+
+The authoritative integration test is a locked `idena-wasm` build followed by
+the binding and full `idena-go` test suites.
+
 Wasmer is a _fast_ and _secure_ [**WebAssembly**](https://webassembly.org) runtime that enables super
 _lightweight containers_ to run anywhere: from *Desktop* to the *Cloud*, *Edge* and *IoT* devices.
 
@@ -43,6 +109,9 @@ _lightweight containers_ to run anywhere: from *Desktop* to the *Cloud*, *Edge* 
 ### Install
 
 Wasmer CLI ships as a single executable with no dependencies.
+
+The commands in this section install the official Wasmer distribution. They do
+not install the Idena compatibility fork described above.
 
 ```sh
 curl https://get.wasmer.io -sSfL | sh
