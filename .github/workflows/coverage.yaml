@@ -13,14 +13,17 @@ env:
   RUSTFLAGS: "-Ccodegen-units=1 -Clink-dead-code -Coverflow-checks=off"
   CARGO_TARPAULIN_VERSION: 0.37.0
 
+permissions:
+  contents: read
+
 jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - name: Install LLVM (Linux)
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.0/clang+llvm-10.0.0-x86_64-linux-gnu-ubuntu-18.04.tar.xz -L -o llvm.tar.xz
@@ -33,7 +36,7 @@ jobs:
           cargo install cargo-tarpaulin --version ${{ env.CARGO_TARPAULIN_VERSION }} --locked
           cargo tarpaulin --forward --release -t120 --out Xml --ignore-tests --workspace --exclude wasmer-c-api -- --skip traps:: --skip spec::linking --test-threads=1
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./cobertura.xml

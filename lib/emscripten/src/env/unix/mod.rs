@@ -238,7 +238,16 @@ pub fn _getaddrinfo(
         let mut head_of_list = None;
         let mut previous_guest_node: Option<WasmPtr<EmAddrInfo>> = None;
 
-        while !current_host_node.is_null() {
+        while let Some(current_host) = current_host_node.as_ref() {
+            let Some(host_sockaddr) = current_host.ai_addr.as_ref() else {
+                current_host_node = current_host.ai_next;
+                continue;
+            };
+            if (current_host.ai_addrlen as usize) < std::mem::size_of::<libc::sockaddr>() {
+                current_host_node = current_host.ai_next;
+                continue;
+            }
+
             let current_guest_node_ptr: WasmPtr<EmAddrInfo> =
                 call_malloc_with_cast(ctx, std::mem::size_of::<EmAddrInfo>() as _);
             if head_of_list.is_none() {
@@ -255,17 +264,16 @@ pub fn _getaddrinfo(
 
             // update values
 
-            let host_addrlen = (*current_host_node).ai_addrlen;
+            let host_addrlen = current_host.ai_addrlen;
             // allocate addr and copy data
             let guest_sockaddr_ptr = {
-                let host_sockaddr_ptr = (*current_host_node).ai_addr;
                 let guest_sockaddr_ptr: WasmPtr<EmSockAddr> =
                     call_malloc_with_cast(ctx, host_addrlen as _);
 
                 let derefed_guest_sockaddr = guest_sockaddr_ptr.deref(&memory).unwrap();
                 let mut gs = derefed_guest_sockaddr.get();
-                gs.sa_family = (*host_sockaddr_ptr).sa_family as i16;
-                gs.sa_data = (*host_sockaddr_ptr).sa_data;
+                gs.sa_family = host_sockaddr.sa_family as i16;
+                gs.sa_data = host_sockaddr.sa_data;
                 derefed_guest_sockaddr.set(gs);
 
                 guest_sockaddr_ptr
@@ -273,7 +281,7 @@ pub fn _getaddrinfo(
 
             // allocate canon name on guest and copy data over
             let guest_canonname_ptr = {
-                let str_ptr = (*current_host_node).ai_canonname;
+                let str_ptr = current_host.ai_canonname;
                 if !str_ptr.is_null() {
                     let canonname_cstr = std::ffi::CStr::from_ptr(str_ptr);
                     let canonname_bytes = canonname_cstr.to_bytes_with_nul();
@@ -295,10 +303,10 @@ pub fn _getaddrinfo(
 
             let derefed_current_guest_node = current_guest_node_ptr.deref(&memory).unwrap();
             let mut cgn = derefed_current_guest_node.get();
-            cgn.ai_flags = (*current_host_node).ai_flags;
-            cgn.ai_family = (*current_host_node).ai_family;
-            cgn.ai_socktype = (*current_host_node).ai_socktype;
-            cgn.ai_protocol = (*current_host_node).ai_protocol;
+            cgn.ai_flags = current_host.ai_flags;
+            cgn.ai_family = current_host.ai_family;
+            cgn.ai_socktype = current_host.ai_socktype;
+            cgn.ai_protocol = current_host.ai_protocol;
             cgn.ai_addrlen = host_addrlen;
             cgn.ai_addr = guest_sockaddr_ptr;
             cgn.ai_canonname = guest_canonname_ptr;
@@ -306,10 +314,12 @@ pub fn _getaddrinfo(
             derefed_current_guest_node.set(cgn);
 
             previous_guest_node = Some(current_guest_node_ptr);
-            current_host_node = (*current_host_node).ai_next;
+            current_host_node = current_host.ai_next;
         }
         // this frees all connected nodes on the linked list
-        freeaddrinfo(out_ptr);
+        if !out_ptr.is_null() {
+            freeaddrinfo(out_ptr);
+        }
         head_of_list.unwrap_or_else(|| WasmPtr::new(0))
     };
 

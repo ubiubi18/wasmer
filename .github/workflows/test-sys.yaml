@@ -20,6 +20,8 @@ on:
     paths:
       - 'lib/**'
 
+permissions: {}
+
 jobs:
   setup:
     name: Set up
@@ -43,12 +45,14 @@ jobs:
     name: Test on ${{ matrix.build }}
     runs-on: ${{ matrix.os }}
     needs: setup
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         include:
           - build: linux-x64
-            os: ubuntu-18.04
+            os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             llvm_url: 'https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.0/clang+llvm-13.0.0-x86_64-linux-gnu-ubuntu-16.04.tar.xz'
             run_test: true
@@ -56,7 +60,7 @@ jobs:
             run_integration_tests: true
             use_sccache: true
           - build: macos-x64
-            os: macos-11
+            os: macos-15-intel
             target: x86_64-apple-darwin
             llvm_url: 'https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.0/clang+llvm-13.0.0-x86_64-apple-darwin.tar.xz'
             run_test: true
@@ -65,13 +69,13 @@ jobs:
             run_integration_tests: true
             run_ios_tests: true
           - build: macos-arm64
-            os: macos-11.0
+            os: macos-15
             target: aarch64-apple-darwin
             use_sccache: true
             run_test: false
             run_test_capi: false
           - build: windows-x64
-            os: windows-2019
+            os: windows-2025
             #target: x86_64-pc-windows-msvc commented because of bug in rust setup action
             # llvm_url: 'https://github.com/wasmerio/llvm-custom-builds/releases/download/12.x/windows-amd64.tar.gz'
             llvm_choco_version: 13.0.0
@@ -92,7 +96,7 @@ jobs:
       SCCACHE_AZURE_BLOB_CONTAINER: wasmerstoragesccacheblob
       SCCACHE_AZURE_CONNECTION_STRING: ${{ secrets.SCCACHE_AZURE_CONNECTION_STRING }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Set up libstdc++ on Linux
         if: matrix.build == 'linux-x64'
         run: |
@@ -110,13 +114,13 @@ jobs:
             apk add build-base bash musl-dev curl make libtool libffi-dev gcc automake autoconf git openssl-dev g++ libxkbcommon-dev wayland-dev
       - name: Install Rust with target
         if: ${{ matrix.target }}
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           targets: ${{ matrix.target }}
       - name: Install Rust
         if: ${{ !matrix.target }}
-        uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         if: matrix.use_sccache != true
       - name: Install LLVM (Choco - Windows)
         if: matrix.llvm_choco_version
@@ -127,7 +131,7 @@ jobs:
           LLVM_DIR=$(pwd)
           echo "LLVM_SYS_120_PREFIX=${LLVM_DIR}" >> $GITHUB_ENV
       - name: Install LLVM (macOS Apple Silicon)
-        if: matrix.os == 'macos-11.0' && !matrix.llvm_url
+        if: matrix.os == 'macos-15' && !matrix.llvm_url
         run: |
           brew install llvm
       - name: Install LLVM
@@ -148,14 +152,14 @@ jobs:
           # using gnu-tar is a workaround for https://github.com/actions/cache/issues/403
           brew install gnu-tar
           echo PATH="/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> $GITHUB_ENV
-        if: matrix.os == 'macos-latest' || matrix.os == 'macos-11.0'
-      - uses: actions/cache@v6
+        if: startsWith(matrix.os, 'macos-')
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ matrix.build }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}-v1
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         if: matrix.use_sccache
         with:
           path: ${{ runner.tool_cache }}/cargo-sccache
@@ -175,26 +179,6 @@ jobs:
           target = "${{ matrix.target }}"
           EOF
         if: matrix.target
-      - name: Set sccache port
-        if: matrix.use_sccache && matrix.random_sccache_port
-        run: |
-          netstat -aln | awk '
-            $6 == "LISTEN" {
-              if ($4 ~ "[.:][0-9]+$") {
-                n = split($4, a, /[:.]/);
-                port = a[n];
-                p[port] = 1
-              }
-            }
-            END {
-              for (i = 3000; i < 65000 && p[i]; i++){};
-              if (i == 65000) {exit 1};
-              print "SCCACHE_SERVER_PORT=" i
-            }
-          ' >> $GITHUB_ENV
-          # echo "SCCACHE_SERVER_PORT=9000"
-          echo "Setting random sccache port to: $SCCACHE_SERVER_PORT"
-        shell: bash
       - name: Start sccache
         if: matrix.use_sccache
         run: |
@@ -204,7 +188,7 @@ jobs:
           echo 'RUSTC_WRAPPER=${{ runner.tool_cache }}/cargo-sccache/bin/sccache' >> $GITHUB_ENV
         shell: bash
       - name: Test
-        if: matrix.run_test && matrix.os != 'windows-2019'
+        if: matrix.run_test && matrix.os != 'windows-2025'
         run: |
           make test
         env:
@@ -212,7 +196,7 @@ jobs:
           TARGET_DIR: target/${{ matrix.target }}/release
           CARGO_TARGET: --target ${{ matrix.target }}
       - name: Test C API
-        if: matrix.run_test_capi && matrix.os != 'windows-2019'
+        if: matrix.run_test_capi && matrix.os != 'windows-2025'
         run: |
           make test-capi
         env:
@@ -220,11 +204,11 @@ jobs:
           TARGET_DIR: target/${{ matrix.target }}/release
           CARGO_TARGET: --target ${{ matrix.target }}
       - name: Test
-        if: matrix.run_test && matrix.os == 'windows-2019'
+        if: matrix.run_test && matrix.os == 'windows-2025'
         run: |
           make test
       - name: Test C API
-        if: matrix.run_test_capi && matrix.os == 'windows-2019'
+        if: matrix.run_test_capi && matrix.os == 'windows-2025'
         run: |
           make test-capi
 
@@ -233,9 +217,11 @@ jobs:
     env:
       CARGO_AUDIT_VERSION: 0.22.2
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/cache@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ runner.tool_cache }}/cargo-audit
           key: cargo-audit-bin-${{ env.CARGO_AUDIT_VERSION }}

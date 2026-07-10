@@ -5,6 +5,9 @@ on:
     branches:
     - benchmark  # TODO: change it back to master once we really track the results. We commented this as speed.wasmer.io is failing
 
+permissions:
+  contents: read
+
 jobs:
   run_benchmark:
     name: Benchmark on ${{ matrix.build }}
@@ -20,9 +23,9 @@ jobs:
       SCCACHE_AZURE_BLOB_CONTAINER: wasmerstoragesccacheblob
       SCCACHE_AZURE_CONNECTION_STRING: ${{ secrets.SCCACHE_AZURE_CONNECTION_STRING }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
       - name: Configure cargo data directory
         # After this point, all cargo registry and crate data is stored in
         # $GITHUB_WORKSPACE/.cargo_home. This allows us to cache only the files
@@ -31,7 +34,7 @@ jobs:
         # the workspace dir to be saved/restored incorrectly.
         run: echo "CARGO_HOME=$(pwd)/.cargo_home" >> $GITHUB_ENV
       - name: Cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           # Note: crates from the git repo always get rebuilt
           # so we cache only those subdirectories of target/{debug|release} that
@@ -53,7 +56,7 @@ jobs:
           echo '/opt/llvm-10/bin' >> $GITHUB_PATH
           echo 'LLVM_SYS_100_PREFIX=/opt/llvm-10' >> $GITHUB_ENV
       - name: Install Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
       - name: Install Python dependencies
