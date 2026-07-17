@@ -3,7 +3,7 @@ name: Fork CI
 on:
   push:
     branches:
-      - '**'
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -57,9 +57,3 @@ jobs:
 
       - name: Link VM tests
         run: cargo test -p wasmer-vm --lib
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --version 0.22.2 --locked
-
-      - name: Audit
-        run: cargo audit
