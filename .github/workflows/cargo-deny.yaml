@@ -1,4 +1,8 @@
 on:
+  pull_request:
+  push:
+    branches:
+      - vibe/clean-modern-fork
   workflow_dispatch:
 
 name: cargo-deny
