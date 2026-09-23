@@ -1,3 +1,73 @@
+#[cfg(all(feature = "sys", feature = "universal", feature = "singlepass"))]
+mod archive_tests {
+    use wasmer::{imports, Instance, Module, Store, Value};
+    use wasmer_compiler_singlepass::Singlepass;
+    use wasmer_engine_universal::Universal;
+
+    fn compiled_module() -> Module {
+        let store = Store::new(&Universal::new(Singlepass::default()).engine());
+        let wasm = wat::parse_str(
+            r#"(module $archive_control
+                (memory (export "memory") 1)
+                (data (i32.const 0) "\2a\00\00\00")
+                (func (param i32))
+                (func (export "answer") (result i32)
+                    i32.const 0 i32.load))"#,
+        )
+        .unwrap();
+        Module::new(&store, wasm).unwrap()
+    }
+
+    #[test]
+    fn roundtrip_executes_with_headless_engine() {
+        let module = compiled_module();
+        let original = Instance::new(&module, &imports! {}).unwrap();
+        let expected = original
+            .exports
+            .get_function("answer")
+            .unwrap()
+            .call(&[])
+            .unwrap();
+        let bytes = module.serialize().unwrap();
+        let store = Store::new(&Universal::headless().engine());
+        // These bytes were produced by the trusted compiler in this test.
+        let restored = unsafe { Module::deserialize(&store, &bytes).unwrap() };
+        assert_eq!(restored.name(), Some("archive_control"));
+        assert_eq!(
+            restored.exports().collect::<Vec<_>>(),
+            module.exports().collect::<Vec<_>>()
+        );
+        let instance = Instance::new(&restored, &imports! {}).unwrap();
+        let answer = instance
+            .exports
+            .get_function("answer")
+            .unwrap()
+            .call(&[])
+            .unwrap();
+        assert_eq!(&*answer, &[Value::I32(42)]);
+        assert_eq!(answer, expected);
+    }
+
+    #[test]
+    fn old_archive_version_is_rejected() {
+        let mut bytes = compiled_module().serialize().unwrap();
+        // Universal magic (16 bytes), metadata magic (8), then native ABI version.
+        bytes[24..28].copy_from_slice(&1u32.to_ne_bytes());
+        let store = Store::new(&Universal::headless().engine());
+        let error = unsafe { Module::deserialize(&store, &bytes) }.unwrap_err();
+        assert!(error.to_string().contains("incompatible version"));
+    }
+
+    #[test]
+    fn truncated_archive_is_rejected() {
+        let mut bytes = compiled_module().serialize().unwrap();
+        bytes.pop();
+        let store = Store::new(&Universal::headless().engine());
+        let error = unsafe { Module::deserialize(&store, &bytes) }.unwrap_err();
+        assert!(error.to_string().contains("truncated metadata"));
+    }
+}
+
 #[cfg(feature = "sys")]
 mod sys {
     use anyhow::Result;

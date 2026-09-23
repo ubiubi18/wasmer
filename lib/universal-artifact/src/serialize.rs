@@ -1,9 +1,5 @@
 use loupe::MemoryUsage;
-use rkyv::{
-    archived_value, de::deserializers::SharedDeserializeMap, ser::serializers::AllocSerializer,
-    ser::Serializer as RkyvSerializer, Archive, Deserialize as RkyvDeserialize,
-    Serialize as RkyvSerialize,
-};
+use rkyv::{rancor::Error, Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use wasmer_artifact::{DeserializeError, SerializeError};
 use wasmer_compiler::{
     CompileModuleInfo, CompiledFunctionFrameInfo, CustomSection, Dwarf, FunctionBody, Relocation,
@@ -50,61 +46,30 @@ fn to_serialize_error(err: impl std::error::Error) -> SerializeError {
 
 impl SerializableModule {
     /// Serialize a Module into bytes
-    /// The bytes will have the following format:
-    /// RKYV serialization (any length) + POS (8 bytes)
+    /// Uses the rkyv 0.8 format, with the archived root at the end.
     pub fn serialize(&self) -> Result<Vec<u8>, SerializeError> {
-        let mut serializer = AllocSerializer::<4096>::default();
-        let pos = serializer
-            .serialize_value(self)
-            .map_err(to_serialize_error)? as u64;
-        let mut serialized_data = serializer.into_serializer().into_inner();
-        serialized_data.extend_from_slice(&pos.to_le_bytes());
-        Ok(serialized_data.to_vec())
+        rkyv::to_bytes::<Error>(self)
+            .map(|bytes| bytes.to_vec())
+            .map_err(to_serialize_error)
     }
 
     /// Deserialize a Module from a slice.
-    /// The slice must have the following format:
-    /// RKYV serialization (any length) + POS (8 bytes)
+    /// The slice must contain a rkyv 0.8 archive.
     ///
     /// # Safety
     ///
-    /// This method is unsafe since it deserializes data directly
-    /// from memory.
-    /// Right now we are not doing any extra work for validation, but
-    /// `rkyv` has an option to do bytecheck on the serialized data before
-    /// serializing (via `rkyv::check_archived_value`).
+    /// Archive structure is validated, including shared pointer metadata.
+    /// The compiled code and its semantic invariants must still be trusted.
     pub unsafe fn deserialize(metadata_slice: &[u8]) -> Result<Self, DeserializeError> {
-        let archived = Self::archive_from_slice(metadata_slice)?;
-        Self::deserialize_from_archive(archived)
-    }
-
-    /// # Safety
-    ///
-    /// This method is unsafe.
-    /// Please check `SerializableModule::deserialize` for more details.
-    unsafe fn archive_from_slice<'a>(
-        metadata_slice: &'a [u8],
-    ) -> Result<&'a ArchivedSerializableModule, DeserializeError> {
-        if metadata_slice.len() < 8 {
-            return Err(DeserializeError::Incompatible(
-                "invalid serialized data".into(),
-            ));
-        }
-        let mut pos: [u8; 8] = Default::default();
-        pos.copy_from_slice(&metadata_slice[metadata_slice.len() - 8..metadata_slice.len()]);
-        let pos: u64 = u64::from_le_bytes(pos);
-        Ok(archived_value::<SerializableModule>(
-            &metadata_slice[..metadata_slice.len() - 8],
-            pos as usize,
-        ))
+        rkyv::from_bytes::<Self, Error>(metadata_slice)
+            .map_err(|e| DeserializeError::CorruptedBinary(e.to_string()))
     }
 
     /// Deserialize a compilation module from an archive
     pub fn deserialize_from_archive(
         archived: &ArchivedSerializableModule,
     ) -> Result<Self, DeserializeError> {
-        let mut deserializer = SharedDeserializeMap::new();
-        RkyvDeserialize::deserialize(archived, &mut deserializer)
-            .map_err(|e| DeserializeError::CorruptedBinary(format!("{:?}", e)))
+        rkyv::deserialize::<Self, Error>(archived)
+            .map_err(|e| DeserializeError::CorruptedBinary(e.to_string()))
     }
 }

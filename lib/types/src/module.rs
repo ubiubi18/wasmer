@@ -17,8 +17,7 @@ use indexmap::IndexMap;
 use loupe::MemoryUsage;
 #[cfg(feature = "enable-rkyv")]
 use rkyv::{
-    de::SharedDeserializeRegistry, ser::ScratchSpace, ser::Serializer,
-    ser::SharedSerializeRegistry, Archive, Archived, Deserialize as RkyvDeserialize, Fallible,
+    rancor::Fallible, Archive, Archived, Deserialize as RkyvDeserialize, Place,
     Serialize as RkyvSerialize,
 };
 #[cfg(feature = "enable-serde")]
@@ -229,14 +228,15 @@ impl Archive for ModuleInfo {
     type Archived = <ArchivableModuleInfo as Archive>::Archived;
     type Resolver = <ArchivableModuleInfo as Archive>::Resolver;
 
-    unsafe fn resolve(&self, pos: usize, resolver: Self::Resolver, out: *mut Self::Archived) {
-        ArchivableModuleInfo::from(self).resolve(pos, resolver, out)
+    fn resolve(&self, resolver: Self::Resolver, out: Place<Self::Archived>) {
+        ArchivableModuleInfo::from(self).resolve(resolver, out)
     }
 }
 
 #[cfg(feature = "enable-rkyv")]
-impl<S: Serializer + SharedSerializeRegistry + ScratchSpace + ?Sized> RkyvSerialize<S>
-    for ModuleInfo
+impl<S: Fallible + ?Sized> RkyvSerialize<S> for ModuleInfo
+where
+    ArchivableModuleInfo: RkyvSerialize<S>,
 {
     fn serialize(&self, serializer: &mut S) -> Result<Self::Resolver, S::Error> {
         ArchivableModuleInfo::from(self).serialize(serializer)
@@ -244,8 +244,9 @@ impl<S: Serializer + SharedSerializeRegistry + ScratchSpace + ?Sized> RkyvSerial
 }
 
 #[cfg(feature = "enable-rkyv")]
-impl<D: Fallible + ?Sized + SharedDeserializeRegistry> RkyvDeserialize<ModuleInfo, D>
-    for Archived<ModuleInfo>
+impl<D: Fallible + ?Sized> RkyvDeserialize<ModuleInfo, D> for Archived<ModuleInfo>
+where
+    Archived<ArchivableModuleInfo>: RkyvDeserialize<ArchivableModuleInfo, D>,
 {
     fn deserialize(&self, deserializer: &mut D) -> Result<ModuleInfo, D::Error> {
         let r: ArchivableModuleInfo =
@@ -281,6 +282,53 @@ impl PartialEq for ModuleInfo {
 }
 
 impl Eq for ModuleInfo {}
+
+#[cfg(all(test, feature = "enable-rkyv"))]
+mod archive_tests {
+    use super::*;
+    use rkyv::{rancor::Error, RelPtr};
+
+    #[test]
+    fn shared_module_data_roundtrips() {
+        let shared: Arc<[u8]> = Arc::from([1, 2, 3, 4]);
+        let mut module = ModuleInfo::default();
+        module.name = Some("archive-control".into());
+        module.custom_sections_data.push(shared.clone());
+        module.custom_sections_data.push(shared);
+        let bytes = rkyv::to_bytes::<Error>(&module).unwrap();
+        let restored = rkyv::from_bytes::<ModuleInfo, Error>(&bytes).unwrap();
+        assert_eq!(restored, module);
+        let values = restored.custom_sections_data.values().collect::<Vec<_>>();
+        assert!(Arc::ptr_eq(values[0], values[1]));
+    }
+
+    #[test]
+    fn conflicting_shared_slice_lengths_are_rejected() {
+        // RUSTSEC-2026-0235: two pointers may alias, but their slice lengths
+        // must agree. Test both a shorter slice and an out-of-bounds length.
+        for forged_len in [2usize, 1024] {
+            let shared: Arc<[u8]> = Arc::from([1, 2, 3, 4]);
+            let mut module = ModuleInfo::default();
+            module.custom_sections_data.push(shared.clone());
+            module.custom_sections_data.push(shared);
+            let mut bytes = rkyv::to_bytes::<Error>(&module).unwrap();
+            let metadata_offset = {
+                let archived = rkyv::access::<Archived<ModuleInfo>, Error>(&bytes).unwrap();
+                let pointers = &archived.custom_sections_data.elems;
+                assert_eq!(pointers[0].get().as_ptr(), pointers[1].get().as_ptr());
+                // ArchivedRc is repr(transparent) over RelPtr. Inspect only
+                // the valid archive to locate its metadata before tampering.
+                let pointer = unsafe { &*(&pointers[1] as *const _ as *const RelPtr<[u8]>) };
+                pointer.metadata() as *const _ as usize - bytes.as_ptr() as usize
+            };
+            let encoded_len = rkyv::to_bytes::<Error>(&forged_len).unwrap();
+            bytes[metadata_offset..metadata_offset + encoded_len.len()]
+                .copy_from_slice(&encoded_len);
+            assert!(rkyv::access::<Archived<ModuleInfo>, Error>(&bytes).is_err());
+            assert!(rkyv::from_bytes::<ModuleInfo, Error>(&bytes).is_err());
+        }
+    }
+}
 
 impl ModuleInfo {
     /// Allocates the module data structures.

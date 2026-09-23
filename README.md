@@ -57,6 +57,12 @@ moving default branch.
 
 ### Risks and tradeoffs
 
+- Compiled-module archives now use rkyv 0.8.17 or later to address
+  [RUSTSEC-2026-0235](https://rustsec.org/advisories/RUSTSEC-2026-0235.html).
+  Metadata ABI version 2 rejects older compiled caches; rebuild them from the
+  original WebAssembly. Raw Wasm and Idena contract argument formats are unchanged.
+  Archive validation does not authenticate native code: Wasmer deserialization
+  APIs still require trusted compiled artifacts.
 - This is still a legacy Wasmer 2.3 architecture. It does not automatically
   receive fixes from current Wasmer releases, and backports can be incomplete.
 - Runtime changes are consensus-sensitive when consumed by Idena. A different

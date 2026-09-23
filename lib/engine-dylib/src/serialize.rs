@@ -1,8 +1,6 @@
 use loupe::MemoryUsage;
 use rkyv::{
-    archived_value, de::deserializers::SharedDeserializeMap, ser::serializers::AllocSerializer,
-    ser::Serializer as RkyvSerializer, Archive, Deserialize as RkyvDeserialize,
-    Serialize as RkyvSerialize,
+    rancor::Error as RkyvError, Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize,
 };
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -60,36 +58,51 @@ impl ModuleMetadata {
     }
 
     pub fn serialize(&mut self) -> Result<Vec<u8>, CompileError> {
-        let mut serializer = AllocSerializer::<4096>::default();
-        let pos = serializer.serialize_value(self).map_err(to_compile_error)? as u64;
-        let mut serialized_data = serializer.into_serializer().into_inner();
-        serialized_data.extend_from_slice(&pos.to_le_bytes());
-        Ok(serialized_data.to_vec())
+        rkyv::to_bytes::<RkyvError>(self)
+            .map(|bytes| bytes.to_vec())
+            .map_err(to_compile_error)
     }
 
     pub unsafe fn deserialize(metadata_slice: &[u8]) -> Result<Self, DeserializeError> {
-        let archived = Self::archive_from_slice(metadata_slice)?;
-        Self::deserialize_from_archive(archived)
-    }
-
-    unsafe fn archive_from_slice(
-        metadata_slice: &[u8],
-    ) -> Result<&ArchivedModuleMetadata, DeserializeError> {
-        let mut pos: [u8; 8] = Default::default();
-        pos.copy_from_slice(&metadata_slice[metadata_slice.len() - 8..metadata_slice.len()]);
-        let pos: u64 = u64::from_le_bytes(pos);
-        Ok(archived_value::<Self>(
-            &metadata_slice[..metadata_slice.len() - 8],
-            pos as usize,
-        ))
+        rkyv::from_bytes::<Self, RkyvError>(metadata_slice)
+            .map_err(|e| DeserializeError::CorruptedBinary(e.to_string()))
     }
 
     pub fn deserialize_from_archive(
         archived: &ArchivedModuleMetadata,
     ) -> Result<Self, DeserializeError> {
-        let mut deserializer = SharedDeserializeMap::new();
-        RkyvDeserialize::deserialize(archived, &mut deserializer)
-            .map_err(|e| DeserializeError::CorruptedBinary(format!("{:?}", e)))
+        rkyv::deserialize::<Self, RkyvError>(archived)
+            .map_err(|e| DeserializeError::CorruptedBinary(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod archive_tests {
+    use super::*;
+    use std::sync::Arc;
+    use wasmer_types::{Features, ModuleInfo};
+
+    #[test]
+    fn metadata_roundtrip_and_truncation() {
+        let mut metadata = ModuleMetadata {
+            compile_info: CompileModuleInfo {
+                module: Arc::new(ModuleInfo::default()),
+                features: Features::default(),
+                memory_styles: PrimaryMap::new(),
+                table_styles: PrimaryMap::new(),
+            },
+            function_frame_info: None,
+            prefix: "archive-control".into(),
+            data_initializers: Box::new([]),
+            function_body_lengths: PrimaryMap::new(),
+            cpu_features: 0,
+        };
+        let bytes = ModuleMetadata::serialize(&mut metadata).unwrap();
+        assert_eq!(
+            unsafe { ModuleMetadata::deserialize(&bytes).unwrap() },
+            metadata
+        );
+        assert!(unsafe { ModuleMetadata::deserialize(&bytes[..1]) }.is_err());
     }
 }
 
