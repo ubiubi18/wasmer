@@ -109,8 +109,8 @@ pub struct MetadataHeader {
 impl MetadataHeader {
     /// Current ABI version. Increment this any time breaking changes are made
     /// to the format of the serialized data.
-    // Version 2 uses rkyv 0.8 archives. Reject 0.7 archives before decoding them.
-    const CURRENT_VERSION: u32 = 2;
+    // Version 3 aligns VMContext imports. Reject code compiled with older offsets.
+    const CURRENT_VERSION: u32 = 3;
 
     /// Magic number to identify wasmer metadata.
     const MAGIC: [u8; 8] = *b"WASMER\0\0";
