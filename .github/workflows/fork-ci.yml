@@ -58,6 +58,11 @@ jobs:
       - name: Link VM tests
         run: cargo test -p wasmer-vm --lib
 
+      - name: VMContext alignment regressions
+        run: |
+          cargo test --locked -p wasmer-types --lib vmoffsets
+          cargo test --locked -p wasmer-workspace --test compilers --features test-singlepass,test-universal rust_panic -- --test-threads=1
+
       - name: Archive security and compatibility tests
         run: |
           cargo test --locked -p wasmer-types --lib archive_tests

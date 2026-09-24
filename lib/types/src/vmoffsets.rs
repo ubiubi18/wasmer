@@ -146,7 +146,7 @@ fn cast_to_u32(sz: usize) -> u32 {
 
 /// Align an offset used in this module to a specific byte-width by rounding up
 const fn align(offset: u32, width: u32) -> u32 {
-    (offset + (width - 1)) / width * width
+    offset.checked_add(width - 1).unwrap() / width * width
 }
 
 /// This class computes offsets to fields within VMContext and other
@@ -433,16 +433,19 @@ impl VMOffsets {
         0
     }
 
-    /// The offset of the `tables` array.
+    /// The offset of the imported functions array.
     #[allow(clippy::erasing_op)]
     pub fn vmctx_imported_functions_begin(&self) -> u32 {
-        self.vmctx_signature_ids_begin()
+        let offset = self
+            .vmctx_signature_ids_begin()
             .checked_add(
                 self.num_signature_ids
                     .checked_mul(u32::from(self.size_of_vmshared_signature_index()))
                     .unwrap(),
             )
-            .unwrap()
+            .unwrap();
+        // Signature IDs are 32-bit, but every following import contains pointers.
+        align(offset, u32::from(self.pointer_size))
     }
 
     /// The offset of the `tables` array.
@@ -741,7 +744,47 @@ impl TargetSharedSignatureIndex {
 
 #[cfg(test)]
 mod tests {
-    use crate::vmoffsets::align;
+    use crate::vmoffsets::{align, VMOffsets};
+
+    #[test]
+    fn vmctx_regions_are_pointer_aligned() {
+        for pointer_size in [4, 8] {
+            for signature_count in 0..5 {
+                for item_count in [0, 1, 2] {
+                    let mut offsets = VMOffsets::new_for_trampolines(pointer_size);
+                    offsets.num_signature_ids = signature_count;
+                    offsets.num_imported_functions = item_count;
+                    offsets.num_imported_tables = item_count;
+                    offsets.num_imported_memories = item_count;
+                    offsets.num_imported_globals = item_count;
+                    offsets.num_local_tables = item_count;
+                    offsets.num_local_memories = item_count;
+                    offsets.num_local_globals = item_count;
+
+                    for offset in [
+                        offsets.vmctx_imported_functions_begin(),
+                        offsets.vmctx_imported_tables_begin(),
+                        offsets.vmctx_imported_memories_begin(),
+                        offsets.vmctx_imported_globals_begin(),
+                        offsets.vmctx_tables_begin(),
+                        offsets.vmctx_memories_begin(),
+                        offsets.vmctx_globals_begin(),
+                        offsets.vmctx_builtin_functions_begin(),
+                    ] {
+                        assert_eq!(offset % u32::from(pointer_size), 0, "{offsets:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn vmctx_imports_alignment_rejects_overflow() {
+        let mut offsets = VMOffsets::new_for_trampolines(8);
+        offsets.num_signature_ids = u32::MAX / 4;
+        offsets.vmctx_imported_functions_begin();
+    }
 
     #[test]
     fn alignment() {

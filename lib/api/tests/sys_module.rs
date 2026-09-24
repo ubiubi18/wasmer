@@ -51,11 +51,13 @@ mod archive_tests {
     #[test]
     fn old_archive_version_is_rejected() {
         let mut bytes = compiled_module().serialize().unwrap();
-        // Universal magic (16 bytes), metadata magic (8), then native ABI version.
-        bytes[24..28].copy_from_slice(&1u32.to_ne_bytes());
         let store = Store::new(&Universal::headless().engine());
-        let error = unsafe { Module::deserialize(&store, &bytes) }.unwrap_err();
-        assert!(error.to_string().contains("incompatible version"));
+        for old_version in [1u32, 2u32] {
+            // Universal magic (16 bytes), metadata magic (8), then native ABI version.
+            bytes[24..28].copy_from_slice(&old_version.to_ne_bytes());
+            let error = unsafe { Module::deserialize(&store, &bytes) }.unwrap_err();
+            assert!(error.to_string().contains("incompatible version"));
+        }
     }
 
     #[test]
