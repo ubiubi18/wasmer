@@ -22,7 +22,7 @@ use wasmer_types::entity::entity_impl;
 )]
 #[cfg_attr(
     feature = "enable-rkyv",
-    archive_attr(derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug))
+    rkyv(derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug))
 )]
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, MemoryUsage)]
 pub struct SectionIndex(u32);

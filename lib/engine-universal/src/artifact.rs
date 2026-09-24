@@ -86,8 +86,8 @@ impl UniversalArtifact {
     /// Deserialize a UniversalArtifactBuild
     ///
     /// # Safety
-    /// This function is unsafe because rkyv reads directly without validating
-    /// the data.
+    /// The archive structure is validated, but its native code and relocation
+    /// metadata must come from a trusted compiler.
     pub unsafe fn deserialize(
         engine: &UniversalEngine,
         bytes: &[u8],
@@ -99,7 +99,9 @@ impl UniversalArtifact {
         }
         let bytes = &bytes[UniversalArtifactBuild::MAGIC_HEADER.len()..];
         let metadata_len = MetadataHeader::parse(bytes)?;
-        let metadata_slice: &[u8] = &bytes[MetadataHeader::LEN..][..metadata_len];
+        let metadata_slice = bytes[MetadataHeader::LEN..]
+            .get(..metadata_len)
+            .ok_or_else(|| DeserializeError::CorruptedBinary("truncated metadata".into()))?;
         let serializable = SerializableModule::deserialize(metadata_slice)?;
         let artifact = UniversalArtifactBuild::from_serializable(serializable);
         let mut inner_engine = engine.inner_mut();

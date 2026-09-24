@@ -57,3 +57,9 @@ jobs:
 
       - name: Link VM tests
         run: cargo test -p wasmer-vm --lib
+
+      - name: Archive security and compatibility tests
+        run: |
+          cargo test --locked -p wasmer-types --lib archive_tests
+          cargo test --locked -p wasmer-engine-dylib --lib archive_tests
+          cargo test --locked -p wasmer --test sys_module archive_tests
