@@ -321,33 +321,13 @@ fn build_cdylib_link_arg() {
 }
 
 fn shared_object_dir() -> PathBuf {
-    // We start from `OUT_DIR` because `cargo publish` uses a different directory
-    // so traversing from `CARGO_MANIFEST_DIR` is less reliable.
-    let mut shared_object_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-
-    assert_eq!(shared_object_dir.file_name(), Some(OsStr::new("out")));
-    shared_object_dir.pop();
-
-    assert!(shared_object_dir
-        .file_name()
-        .as_ref()
-        .unwrap()
-        .to_string_lossy()
-        .to_string()
-        .starts_with("wasmer-c-api"));
-    shared_object_dir.pop();
-
-    assert_eq!(shared_object_dir.file_name(), Some(OsStr::new("build")));
-    shared_object_dir.pop();
-    shared_object_dir.pop(); // "debug" or "release"
-
-    // We either find `target` or the target triple if cross-compiling.
-    if shared_object_dir.file_name() != Some(OsStr::new("target")) {
-        let target = env::var("TARGET").unwrap();
-        assert_eq!(shared_object_dir.file_name(), Some(OsStr::new(&target)));
-    }
-
-    shared_object_dir.push(env::var("PROFILE").unwrap());
-
-    shared_object_dir
+    // Cargo 1.100 split the package name and hash into separate directories
+    // below <profile>/build. The library is in the profile directory in both layouts.
+    let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo must set OUT_DIR"));
+    out_dir
+        .ancestors()
+        .find(|dir| dir.file_name() == Some(OsStr::new("build")))
+        .and_then(Path::parent)
+        .expect("expected OUT_DIR below the Cargo profile's build directory")
+        .to_path_buf()
 }
